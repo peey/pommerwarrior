@@ -9,9 +9,10 @@ import crazy_util
 
 """
 Observation State Assumptions:
-(Observations take precedence with less index number on highest priority)
+(Observations take precedence with high rank on highest priority)
 
 0 - Adjacent to a bomb
+4 - Line of sight of bomb
 1 - Adjacent to enemy
 2 - Adjacent to a wall
 3 - Tiles on all four directions (essentially a fallback, which means a state different than the above three)
@@ -31,7 +32,7 @@ class WarriorAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super(WarriorAgent, self).__init__(*args, **kwargs)
-        self.eps = 0.1
+        self.eps = 0.1      # randomness factor
         self.epochs = 10000
         self.max_steps = 100
         self.lr_rate = 0.81
@@ -43,7 +44,7 @@ class WarriorAgent(BaseAgent):
             with open('qtable.pkl', 'rb') as f:
                 self.Q = pickle.load(f)
         except Exception as e:
-            self.Q = np.zeros((4, 6))
+            self.Q = np.zeros((5, 6))
 
     def get_observation_state(self, board, pos, enemies, bomb_map):
         """
@@ -68,6 +69,7 @@ class WarriorAgent(BaseAgent):
         has_bomb = False
         has_enemy = False
         has_wood = False
+        los_bomb = False
 
         x, y = pos
         dirX = [-1,0,1,0]
@@ -85,8 +87,16 @@ class WarriorAgent(BaseAgent):
                     if utility.position_is_enemy(board, pos, enemies):
                         has_enemy = True
 
+        for k1 in range(0, board.shape[0]):
+            if utility.position_is_bomb(bombs, (k1, y)):
+                los_bomb = True
+            elif utility.position_is_bomb(bombs, (x, k1)):
+                los_bomb = True
+
         if has_bomb:
             return 0
+        elif los_bomb:
+            return 4
         elif has_enemy:
             return 1
         elif has_wood:
