@@ -10,7 +10,6 @@ def main():
        
        Example training environment.
     '''
-    # constants.MAX_STEPS = 200
     # Print all possible environments in the Pommerman registry
     # print(pommerman.REGISTRY)
     # exit(0)
@@ -29,10 +28,11 @@ def main():
 
     # Run the episodes just like OpenAI Gym
     for i_episode in range(100):
+        constants.MAX_STEPS = 200
         state = env.reset()
         done = False
         while not done:
-            # env.render()
+            env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
             # print(reward)

@@ -103,6 +103,7 @@ class WarriorAgent(BaseAgent):
         self.last_reward = reward
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         print(self.Q)
+        print('reward for this episode : ', reward)
         with open('qtable.pkl', 'wb') as f:
             pickle.dump(self.Q, f)
 
