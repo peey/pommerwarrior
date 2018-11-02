@@ -2,6 +2,7 @@
 import pommerman
 from pommerman import agents
 from WarriorAgent import WarriorAgent
+from pommerman import constants
 
 
 def main():
@@ -9,28 +10,32 @@ def main():
        
        Example training environment.
     '''
+    # constants.MAX_STEPS = 200
     # Print all possible environments in the Pommerman registry
     # print(pommerman.REGISTRY)
+    # exit(0)
 
     # Create a set of agents (exactly four)
     agent_list = [
         agents.SimpleAgent(),
-        WarriorAgent(),
         agents.SimpleAgent(),
-        agents.RandomAgent(),
+        agents.SimpleAgent(),
+        WarriorAgent(),
+        # agents.SimpleAgent(),
         # agents.DockerAgent("pommerman/simple-agent", port=12345),
     ]
-    # Make the "Free-For-All" environment using the agent list
-    env = pommerman.make('PommeTeamCompetition-v0', agent_list)
+    # Make the "TeamCompetition" environment using the agent list
+    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
-    for i_episode in range(1):
+    for i_episode in range(100):
         state = env.reset()
         done = False
         while not done:
-            env.render()
+            # env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
+            # print(reward)
         print('Episode {} finished'.format(i_episode))
     env.close()
 
