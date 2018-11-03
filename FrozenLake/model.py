@@ -2,6 +2,8 @@ import gym
 import numpy as np
 import time, pickle, os
 
+# Reference - https://medium.com/swlh/introduction-to-reinforcement-learning-coding-q-learning-part-3-9778366a41c0
+
 env = gym.make('FrozenLake-v0')
 env.reset()
 
