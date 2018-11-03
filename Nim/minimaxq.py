@@ -7,6 +7,11 @@ max_heap = 100
 
 Actions = [1, 2, 3]
 
+"""
+Citation: this code implements the q minimax algorithm from "Markov games as a framework for multi-agent reinforcement learning" by littman
+
+Implementation is my own
+"""
 Q = np.ones((max_heap, 3, 3))
 V = np.ones(max_heap)
 pi = np.full((max_heap, 3), 1/3)
@@ -55,46 +60,42 @@ def learn():
     for move in game:
         s, sdash, a, o = move
         Q[s, a, o] = (1 - alpha) * Q[s, a, o] + alpha * (rew + gamma + V[sdash])
-        # update policy for s
-        # pi[s, 1] = 
-        # pi[s, 2]
-        # pi[s, 3]
+        # update policy for s, we can just do it manually because action space is sweet
+        p = np.linspace(0, 1, 0.1)
+        q = np.linspace(0, 1, 0.1)
+        best_policy = pi[s]
+        best_score = pi[s]
+        for p_i in p:
+            for q_i in q:
+                new_policy = [p_i, p_i + q_i, 1 - p_i - q_i]
+                min_score, min_action = compute_vs(new_policy)
+                if min_score < best_score:
+                    best_policy = new_policy
+                    best_score = min_score
+                    
 
 
-        compute_vs(pi)
+        pi[s, 1] = best_policy[1]
+        pi[s, 2] = best_policy[2]
+        pi[s, 3] = best_policy[3]
+
+
+        min_score, min_action = compute_vs(pi, s)
         V[s] = min_score
         alpha = alpha * decay
 
 
 
-def compute_vs(pi):
+def compute_vs(pi, s):
     global heap, Q, V
     min_score = math.inf
     min_action = 1
     for odash in Actions:
         score = 0
         for adash in Actions:
-            score += pi[s, adash] * Q[s, adash, odash]
+            score += pi[adash] * Q[s, adash, odash]
 
         if (score < min_score):
             min_action = odash
 
     return (min_score, min_action)
-
-
-def minimax(p, s, memoization_enabled = True):
-    minimax_called += 1
-    if (memoization_enabled and str(s) in memoized):
-        return memoized[str(s)]
-
-    if (p.terminal_test(s)):
-        newresult = p.utility(s)
-    else:
-        mmvals = [minimax(p, n, memoization_enabled) for n in p.actions(s)]
-        if (p.player(s) == "X"): # max
-            newresult = max(mmvals)
-        else:
-            newresult = min(mmvals)
-
-    memoized[str(s)] = newresult
-    return newresult
