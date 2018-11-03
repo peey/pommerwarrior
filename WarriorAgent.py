@@ -40,7 +40,8 @@ class WarriorAgent(BaseAgent):
         self.prev_state = None
         self.cur_state = None
         self.last_reward = 0
-        self.model_file = 'qtable_survival_reward.pkl'
+        self.win = 0
+        self.model_file = 'qtable_survival_reward-v1.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
@@ -94,6 +95,9 @@ class WarriorAgent(BaseAgent):
             elif utility.position_is_bomb(bombs, (x, k1)):
                 los_bomb = True
 
+        if utility.position_is_bomb(bombs, (x,y)):
+            has_bomb = True
+
         if has_bomb:
             return 0
         elif los_bomb:
@@ -115,8 +119,8 @@ class WarriorAgent(BaseAgent):
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         print(self.Q)
         print('reward for this episode : ', reward)
-        # with open(self.model_file, 'wb') as f:
-            # pickle.dump(self.Q, f)
+        with open(self.model_file, 'wb') as f:
+            pickle.dump(self.Q, f)
 
 
     def act(self, obs, action_space):
