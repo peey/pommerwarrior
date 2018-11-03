@@ -40,8 +40,9 @@ class WarriorAgent(BaseAgent):
         self.prev_state = None
         self.cur_state = None
         self.last_reward = 0
+        self.model_file = 'qtable_survival_reward.pkl'
         try:
-            with open('qtable.pkl', 'rb') as f:
+            with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
         except Exception as e:
             self.Q = np.zeros((5, 6))
@@ -114,8 +115,8 @@ class WarriorAgent(BaseAgent):
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         print(self.Q)
         print('reward for this episode : ', reward)
-        with open('qtable.pkl', 'wb') as f:
-            pickle.dump(self.Q, f)
+        # with open(self.model_file, 'wb') as f:
+            # pickle.dump(self.Q, f)
 
 
     def act(self, obs, action_space):
@@ -136,4 +137,9 @@ class WarriorAgent(BaseAgent):
         else:
             action = np.argmax(self.Q[state, :])
         self.last_action = action
+        # print(obs)
+        if obs['step_count'] % 10 :
+            self.last_reward = obs['step_count']/1000
+        else:
+            self.last_reward = 0
         return action

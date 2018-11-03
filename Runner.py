@@ -16,9 +16,11 @@ def main():
 
     # Create a set of agents (exactly four)
     agent_list = [
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
+        agents.RandomAgent(),
+        agents.RandomAgent(),
+        agents.RandomAgent(),
+        # agents.SimpleAgent(),
+        # agents.SimpleAgent(),
         WarriorAgent(),
         # agents.SimpleAgent(),
         # agents.DockerAgent("pommerman/simple-agent", port=12345),
