@@ -3,6 +3,7 @@ import pommerman
 from pommerman import agents
 from WarriorAgent import WarriorAgent
 from pommerman import constants
+from ClassQL.MultiType import MultiTypeTeamAgent
 
 
 def main():
@@ -11,24 +12,27 @@ def main():
        Example training environment.
     '''
     # Print all possible environments in the Pommerman registry
-    # print(pommerman.REGISTRY)
+    print(pommerman.REGISTRY)
     # exit(0)
 
     # Create a set of agents (exactly four)
-    wa = WarriorAgent()
+    # wa = WarriorAgent()
     agent_list = [
         agents.RandomAgent(),
+        MultiTypeTeamAgent(),
         agents.RandomAgent(),
-        agents.RandomAgent(),
+        MultiTypeTeamAgent(),
+        # agents.RandomAgent(),
         # agents.SimpleAgent(),
         # agents.SimpleAgent(),
         # agents.SimpleAgent(),
-        wa,
+        # wa,
         # agents.SimpleAgent(),
         # agents.DockerAgent("pommerman/simple-agent", port=12345),
     ]
     # Make the "TeamCompetition" environment using the agent list
-    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
+    # env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
+    env = pommerman.make('PommeTeamCompetitionFast-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
     num_wins = 0
@@ -42,7 +46,7 @@ def main():
             state, reward, done, info = env.step(actions)
             # print(reward)
         print('Episode {} finished'.format(i_episode))
-        if wa.last_reward == 1:
+        if MultiTypeTeamAgent.last_reward == 1:
             num_wins+=1
         print("Win Ratio: ", num_wins, i_episode)
     env.close()
