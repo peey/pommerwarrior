@@ -16,27 +16,27 @@ def main():
     # exit(0)
 
     # Create a set of agents (exactly four)
-    # wa = WarriorAgent()
+    wa = WarriorAgent()
     agent_list = [
         agents.RandomAgent(),
-        MultiTypeTeamAgent(),
+        # agents.SimpleAgent(),
+        # agents.WarriorAgent(),
+        # MultiTypeTeamAgent(),
         agents.RandomAgent(),
-        MultiTypeTeamAgent(),
-        # agents.RandomAgent(),
+        # MultiTypeTeamAgent(),
+        agents.RandomAgent(),
         # agents.SimpleAgent(),
-        # agents.SimpleAgent(),
-        # agents.SimpleAgent(),
-        # wa,
+        wa,
         # agents.SimpleAgent(),
         # agents.DockerAgent("pommerman/simple-agent", port=12345),
     ]
     # Make the "TeamCompetition" environment using the agent list
     # env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
-    env = pommerman.make('PommeTeamCompetitionFast-v0', agent_list)
+    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
     num_wins = 0
-    for i_episode in range(1000):
+    for i_episode in range(10):
         constants.MAX_STEPS = 200
         state = env.reset()
         done = False
@@ -46,9 +46,9 @@ def main():
             state, reward, done, info = env.step(actions)
             # print(reward)
         print('Episode {} finished'.format(i_episode))
-        if MultiTypeTeamAgent.last_reward == 1:
+        if wa.last_reward == 1:
             num_wins+=1
-        print("Win Ratio: ", num_wins, i_episode)
+        print("Win Ratio: ", num_wins, i_episode+1)
     env.close()
 
 

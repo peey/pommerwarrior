@@ -17,6 +17,7 @@ Observation State Assumptions:
 2 - Adjacent to a wall
 3 - Tiles on all four directions (essentially a fallback, which means a state different than the above three)
 
+2* any of the above number == new state with bomb
 
 Notes to future Self:
 
@@ -41,14 +42,14 @@ class WarriorAgent(BaseAgent):
         self.cur_state = None
         self.last_reward = 0
         self.win = 0
-        self.model_file = 'qtable_survival_reward-v1.pkl'
+        self.model_file = 'qtable_more_states-v0.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
         except Exception as e:
-            self.Q = np.zeros((5, 6))
+            self.Q = np.zeros((10, 6))
 
-    def get_observation_state(self, board, pos, enemies, bomb_map):
+    def get_observation_state(self, board, pos, enemies, bomb_map, ammo):
         """
         Need just the board layout to decide everything
         board -> np.array
@@ -72,6 +73,10 @@ class WarriorAgent(BaseAgent):
         has_enemy = False
         has_wood = False
         los_bomb = False
+        has_ammo = False
+
+        if ammo > 0:
+            has_ammo = True
 
         x, y = pos
         dirX = [-1,0,1,0]
@@ -98,16 +103,23 @@ class WarriorAgent(BaseAgent):
         if utility.position_is_bomb(bombs, (x,y)):
             has_bomb = True
 
+        state = 3
+
         if has_bomb:
-            return 0
+            state = 0
         elif los_bomb:
-            return 4
+            state = 4
         elif has_enemy:
-            return 1
+            state = 1
         elif has_wood:
-            return 2
+            state = 2
         else:
-            return 3
+            state = 3
+
+        if has_ammo:
+            state = 2 * state
+
+        return state
 
     def learn(self, from_state, to_state, reward, action_taken):
         predict = self.Q[from_state, action_taken]
@@ -117,7 +129,7 @@ class WarriorAgent(BaseAgent):
     def episode_end(self, reward):
         self.last_reward = reward
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
-        print(self.Q)
+        # print(self.Q)
         print('reward for this episode : ', reward)
         with open(self.model_file, 'wb') as f:
             pickle.dump(self.Q, f)
@@ -129,7 +141,8 @@ class WarriorAgent(BaseAgent):
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
-                                           obs['bomb_blast_strength'])
+                                           obs['bomb_blast_strength'],
+                                           obs['ammo'])
         self.cur_state = state
         if self.prev_state != None:
             self.learn(self.prev_state, self.cur_state, self.last_reward, self.last_action)
