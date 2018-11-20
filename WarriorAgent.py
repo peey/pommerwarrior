@@ -33,7 +33,7 @@ class WarriorAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super(WarriorAgent, self).__init__(*args, **kwargs)
-        self.eps = 0.1      # randomness factor
+        self.eps = 0.15      # randomness factor
         self.epochs = 10000
         self.max_steps = 100
         self.lr_rate = 0.81
@@ -42,12 +42,39 @@ class WarriorAgent(BaseAgent):
         self.cur_state = None
         self.last_reward = 0
         self.win = 0
-        self.model_file = 'qtable_more_states-v0.pkl'
+        self.model_file = 'qtable_intelli_actions-v0.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
         except Exception as e:
             self.Q = np.zeros((10, 6))
+
+    def get_possible_actions(self, board, pos, ammo):
+        """
+        0 : Pass
+        1 : Up
+        2 : Down
+        3 : Left
+        4 : Right
+        5 : Bomb
+        """
+        valid_acts = []
+        x, y = pos
+        dirX = [-1,1, 0,0]
+        dirY = [ 0,0,-1,1]
+        for k in range(0, len(dirX)):
+            newX = x + dirX[k]
+            newY = y + dirY[k]
+            # print((newX, newY), board.shape)
+            if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
+                if board[newX, newY] in [0, 6, 7, 8]:
+                    valid_acts.append(k+1)
+        if ammo > 0:
+            valid_acts.append(5)
+
+        if len(valid_acts) == 0:
+            valid_acts.append(0)
+        return valid_acts
 
     def get_observation_state(self, board, pos, enemies, bomb_map, ammo):
         """
@@ -94,10 +121,9 @@ class WarriorAgent(BaseAgent):
                     if utility.position_is_enemy(board, pos, enemies):
                         has_enemy = True
 
-        for k1 in range(0, board.shape[0]):
-            if utility.position_is_bomb(bombs, (k1, y)):
-                los_bomb = True
-            elif utility.position_is_bomb(bombs, (x, k1)):
+        for bomb in bombs:
+            if ((abs(x-bomb['position'][0]) <= bomb['blast_strength'] and y == bomb['position'][1])
+                or (abs(y-bomb['position'][1]) <= bomb['blast_strength'] and x == bomb['position'][0])):
                 los_bomb = True
 
         if utility.position_is_bomb(bombs, (x,y)):
@@ -152,9 +178,17 @@ class WarriorAgent(BaseAgent):
             # Random action from the space
             action = action_space.sample()
         else:
-            action = np.argmax(self.Q[state, :])
+            actions = self.get_possible_actions(obs['board'],
+                                                obs['position'],
+                                                obs['ammo'])
+            action = actions[0]
+            for i in actions:
+                if self.Q[state, i] > self.Q[state, action]:
+                    action = i
+            # action = np.argmax(self.Q[state, :])
         self.last_action = action
         # print(obs)
+        self.eps -= 1/(obs['step_count']+100)
         if obs['step_count'] % 10 :
             self.last_reward = obs['step_count']/1000
         else:

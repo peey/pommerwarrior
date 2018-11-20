@@ -18,8 +18,8 @@ def main():
     # Create a set of agents (exactly four)
     wa = WarriorAgent()
     agent_list = [
-        agents.RandomAgent(),
-        # agents.SimpleAgent(),
+        # agents.RandomAgent(),
+        agents.SimpleAgent(),
         # agents.WarriorAgent(),
         # MultiTypeTeamAgent(),
         agents.RandomAgent(),
@@ -32,11 +32,11 @@ def main():
     ]
     # Make the "TeamCompetition" environment using the agent list
     # env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
-    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
+    env = pommerman.make('PommeFFACompetition-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
     num_wins = 0
-    for i_episode in range(10):
+    for i_episode in range(1):
         constants.MAX_STEPS = 200
         state = env.reset()
         done = False
