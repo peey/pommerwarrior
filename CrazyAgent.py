@@ -6,6 +6,7 @@ import collections
 from WarriorAgent import WarriorAgent
 import itertools
 
+import math
 import numpy as np
 import pickle
 import crazy_util
@@ -18,7 +19,7 @@ Agent's state will be an named tuple with following keys (to be changed later):
   - los_bomb
   - has_ammo
 
-Note: don't nest it for now!
+Note: don't use nested tuples it for now!
 """
 State = collections.namedtuple("State", ["has_bomb", "has_enemy", "has_wood", "los_bomb", "has_ammo"])
 
@@ -34,21 +35,50 @@ class CrazyAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
         super(CrazyAgent, self).__init__(*args, **kwargs)
-        self.eps = 0.15      # randomness factor
+        self.eps_naught = 0.6      # randomness factor
+        self.eps = 0.6      
         self.epochs = 10000
         self.max_steps = 100
-        self.lr_rate = 0.81
+        self.lr_rate_naught = 0.4
+        self.lr_rate = 0.4
         self.gamma = 0.96
         self.prev_state = None
         self.cur_state = None # will be tuples, we convert to index when we have to do lookup
         self.last_reward = 0
         self.win = 0
         self.model_file = 'qtable_crazy-v0.pkl'
+        self.unpickle_or_default()
+
+    def update_params(self):
+        multiplier = (1 / (1 + math.log(self.experience)))
+        self.lr_rate =  multiplier * self.lr_rate_naught
+        self.eps = multiplier * self.eps_naught 
+
+    def pickle(self):
+        with open(self.model_file, 'wb') as f:
+            pickle.dump(self.experience, f)
+            pickle.dump(self.Q, f)
+    
+    def unpickle_or_default(self):
         try:
             with open(self.model_file, 'rb') as f:
+                self.experience = pickle.load(f) # number of episodes we've been trained on so far
                 self.Q = pickle.load(f)
         except Exception as e:
+            self.experience = 0
             self.Q = np.zeros((len(composite_state_space), 6))
+
+    def reward_for_state(self, s): # Assume reward for winning is 30, for losing is -30
+        rewards = 0
+        if s.los_bomb: # los bomb means we evaded or planted a bomb?
+            rewards += 5
+        if s.has_wood: # seek wood
+            rewards += 1
+        if not s.has_ammo: # learn to pick up ammo
+            rewards -= 2
+        if s.has_enemy: # avoid enemey ever so slightly
+            rewards -= 1
+        return rewards
 
     def get_possible_actions(self, board, pos, ammo):
         """
@@ -136,15 +166,17 @@ class CrazyAgent(BaseAgent):
 
         predict = self.Q[from_state_id, action_taken]
         target = reward + self.gamma * np.max(self.Q[to_state_id, :])
-        self.Q[from_state_id, action_taken] = self.Q[from_state_id, action_taken] + self.lr_rate * (target - predict)
+        self.Q[from_state_id, action_taken] = (1 - self.lr_rate) * predict + self.lr_rate * target 
+
+        self.experience += 1
+        self.update_params()
 
     def episode_end(self, reward):
-        self.last_reward = reward
+        self.last_reward = reward * 30
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         # print(self.Q)
-        print('reward for this episode : ', reward)
-        with open(self.model_file, 'wb') as f:
-            pickle.dump(self.Q, f)
+        print('win status of last episode : ', reward)
+        self.pickle()
 
 
     def act(self, obs, action_space):
@@ -158,8 +190,10 @@ class CrazyAgent(BaseAgent):
         state_id = state_to_index_map[state]
 
         self.cur_state = state
+
         if self.prev_state != None:
             self.learn(self.prev_state, self.cur_state, self.last_reward, self.last_action)
+
         self.prev_state = state
         action = 0
         if np.random.uniform(0,1) < self.eps:
@@ -177,9 +211,5 @@ class CrazyAgent(BaseAgent):
         self.last_action = action
         # print(obs)
         self.eps -= 1/(obs['step_count']+100)
-        if obs['step_count'] % 10 :
-            self.last_reward = -obs['step_count']/10000
-        else:
-            self.last_reward = 0
+        self.last_reward = self.reward_for_state(self.cur_state)
         return action
-
