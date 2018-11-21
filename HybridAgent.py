@@ -15,13 +15,13 @@ import crazy_util
 Agent's state will be an named tuple with following keys (to be changed later):
   - has_bomb
   - has_enemy
-  - has_wood
+  - is_surrounded
   - los_bomb
   - has_ammo
 
 Note: don't use nested tuples it for now!
 """
-State = collections.namedtuple("State", ["has_bomb", "has_enemy", "has_wood", "los_bomb", "has_ammo", "can_kick"])
+State = collections.namedtuple("State", ["has_bomb", "has_enemy", "is_surrounded", "los_bomb", "has_ammo", "can_kick"])
 
 component_state_space = State([True, False], [True, False], [True, False], [True, False], [True, False], [True, False])
 
@@ -72,8 +72,8 @@ class HybridAgent(BaseAgent):
         rewards = 0
         if s.los_bomb: # los bomb means we will be killed by a bomb
             rewards -= 5
-        # if s.has_wood: # seek wood
-            # rewards += 1
+        if s.is_surrounded: # prevent from getting surrounded
+            rewards -= 1
         if not s.has_ammo: # learn to pick up ammo
             rewards -= 2
         if not s.can_kick:  # learn to pick up can kick
@@ -145,7 +145,8 @@ class HybridAgent(BaseAgent):
 
         has_bomb = False
         has_enemy = False
-        has_wood = False
+        # is_surrounded = False
+        is_surrounded = False
         los_bomb = False
         has_ammo = False
         # can kick is also a valid state
@@ -156,6 +157,7 @@ class HybridAgent(BaseAgent):
         x, y = pos
         dirX = [-1,1, 0,0]
         dirY = [ 0,0,-1,1]
+        blocks = 0
         for k in range(0, len(dirX)):
             newX = x + dirX[k]
             newY = y + dirY[k]
@@ -163,8 +165,9 @@ class HybridAgent(BaseAgent):
             if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
                 if utility.position_is_bomb(bombs, (newX, newY)):
                     has_bomb = True
-                if utility.position_is_wood(board, (newX, newY)):
-                    has_wood = True
+                if utility.position_is_rigid(board, (newX, newY)):
+                    # is_surrounded = True
+                    blocks += 1
                 if utility.position_is_enemy(board, pos, enemies):
                     has_enemy = True
 
@@ -173,7 +176,10 @@ class HybridAgent(BaseAgent):
         if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs):
             has_bomb = True
 
-        return State(has_bomb, has_enemy, has_wood, los_bomb, has_ammo, can_kick)
+        if blocks > 2:
+            is_surrounded = True
+
+        return State(has_bomb, has_enemy, is_surrounded, los_bomb, has_ammo, can_kick)
 
     def learn(self, from_state, to_state, reward, action_taken):
         from_state_id = state_to_index_map[from_state]
