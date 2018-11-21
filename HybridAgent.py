@@ -89,7 +89,7 @@ class HybridAgent(BaseAgent):
         4 : Right
         5 : Bomb
         """
-        valid_acts = []
+        valid_acts = [0]
         x, y = pos
         dirX = [-1,1, 0,0]
         dirY = [ 0,0,-1,1]
@@ -105,8 +105,9 @@ class HybridAgent(BaseAgent):
         if ammo > 0:
             valid_acts.append(5)
 
-        if len(valid_acts) <=1:
-            valid_acts.append(0)
+        if len(valid_acts) > 1 and utility.position_is_bomb(bombs, (pos[0], pos[1])) and self.check_bomb((pos[0], pos[1]), bombs):
+            valid_acts.pop(0)
+
         return valid_acts
 
     def convert_bombs(self, bomb_map, bomb_life):
@@ -124,9 +125,9 @@ class HybridAgent(BaseAgent):
     def check_bomb(self, pos, bombs):
         (newX, newY) = pos
         for bomb in bombs:
-            if (((bomb['life']+1 <= bomb['blast_strength'] - abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
-                or ((bomb['life']+1 <= bomb['blast_strength'] - abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
-                print(bomb, pos)
+            if (((bomb['life']-1 <= bomb['blast_strength'] - abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
+                or ((bomb['life']-1 <= bomb['blast_strength'] - abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
+                # print(bomb, pos)
                 return True
         return False
 
@@ -193,7 +194,7 @@ class HybridAgent(BaseAgent):
 
     def act(self, obs, action_space):
         # print(action_space, obs)
-        print(obs['board'])
+        # print(obs['board'])
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
@@ -218,6 +219,7 @@ class HybridAgent(BaseAgent):
         if np.random.uniform(0,1) < self.eps:
             # Random action from the space
             action = np.random.choice(actions)
+            # print('random')
         else:
             action = actions[0]
             for i in actions:
@@ -228,6 +230,6 @@ class HybridAgent(BaseAgent):
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        print(actions, action, obs['can_kick'])
+        # print(actions, action, obs['can_kick'])
 
         return action
