@@ -167,7 +167,7 @@ class WarriorAgent(BaseAgent):
 
 
     def act(self, obs, action_space):
-        print(action_space, obs)
+        # print(action_space, obs)
         # print(obs['board'])
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
@@ -192,7 +192,7 @@ class WarriorAgent(BaseAgent):
             for i in actions:
                 if self.Q[state, i] > self.Q[state, action]:
                     action = i
-            print(self.cur_state, actions, action)
+            # print(self.cur_state, actions, action)
             # action = np.argmax(self.Q[state, :])
         self.last_action = action
         # print(obs)
