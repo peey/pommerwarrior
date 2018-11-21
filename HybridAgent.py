@@ -21,9 +21,9 @@ Agent's state will be an named tuple with following keys (to be changed later):
 
 Note: don't use nested tuples it for now!
 """
-State = collections.namedtuple("State", ["has_bomb", "has_enemy", "has_wood", "los_bomb", "has_ammo"])
+State = collections.namedtuple("State", ["has_bomb", "has_enemy", "has_wood", "los_bomb", "has_ammo", "can_kick"])
 
-component_state_space = State([True, False], [True, False], [True, False], [True, False], [True, False])
+component_state_space = State([True, False], [True, False], [True, False], [True, False], [True, False], [True, False])
 
 # the following has a deterministic ordering
 composite_state_space = [State(*record) for record in itertools.product(*component_state_space)]
@@ -80,7 +80,7 @@ class HybridAgent(BaseAgent):
             rewards -= 1
         return rewards
 
-    def get_possible_actions(self, board, pos, ammo, bombs):
+    def get_possible_actions(self, board, pos, ammo, can_kick, bombs):
         """
         0 : Pass
         1 : Up
@@ -100,10 +100,13 @@ class HybridAgent(BaseAgent):
             if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
                 if board[newX, newY] in [0, 6, 7, 8] and not self.check_bomb((newX, newY), bombs):
                     valid_acts.append(k+1)
+                elif board[newX, newY] in [3] and can_kick:
+                    valid_acts.append(k+1)
         if ammo > 0:
             valid_acts.append(5)
 
-        valid_acts.append(0)
+        if len(valid_acts) <=1:
+            valid_acts.append(0)
         return valid_acts
 
     def convert_bombs(self, bomb_map, bomb_life):
@@ -121,13 +124,13 @@ class HybridAgent(BaseAgent):
     def check_bomb(self, pos, bombs):
         (newX, newY) = pos
         for bomb in bombs:
-            if (((bomb['life'] < bomb['blast_strength'] - abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
-                or ((bomb['life'] < bomb['blast_strength'] - abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
+            if (((bomb['life']+1 <= bomb['blast_strength'] - abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
+                or ((bomb['life']+1 <= bomb['blast_strength'] - abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
                 print(bomb, pos)
                 return True
         return False
 
-    def get_observation_state(self, board, pos, enemies, bomb_map, bomb_life, ammo):
+    def get_observation_state(self, board, pos, enemies, bomb_map, bomb_life, ammo, can_kick):
         """
         Need just the board layout to decide everything
         board -> np.array
@@ -142,6 +145,7 @@ class HybridAgent(BaseAgent):
         has_wood = False
         los_bomb = False
         has_ammo = False
+        # can kick is also a valid state
 
         if ammo > 0:
             has_ammo = True
@@ -166,7 +170,7 @@ class HybridAgent(BaseAgent):
         if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs):
             has_bomb = True
 
-        return State(has_bomb, has_enemy, has_wood, los_bomb, has_ammo)
+        return State(has_bomb, has_enemy, has_wood, los_bomb, has_ammo, can_kick)
 
     def learn(self, from_state, to_state, reward, action_taken):
         from_state_id = state_to_index_map[from_state]
@@ -195,7 +199,8 @@ class HybridAgent(BaseAgent):
                                            obs['enemies'],
                                            obs['bomb_blast_strength'],
                                            obs['bomb_life'],
-                                           obs['ammo'])
+                                           obs['ammo'],
+                                           obs['can_kick'])
         state_id = state_to_index_map[state]
 
         self.cur_state = state
@@ -208,6 +213,7 @@ class HybridAgent(BaseAgent):
         actions = self.get_possible_actions(obs['board'],
                                             obs['position'],
                                             obs['ammo'],
+                                            obs['can_kick'],
                                             self.convert_bombs(np.array(obs['bomb_blast_strength']), np.array(obs['bomb_life'])))
         if np.random.uniform(0,1) < self.eps:
             # Random action from the space
@@ -222,6 +228,6 @@ class HybridAgent(BaseAgent):
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        print(actions, action)
+        print(actions, action, obs['can_kick'])
 
         return action
