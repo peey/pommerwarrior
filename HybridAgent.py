@@ -100,7 +100,7 @@ class HybridAgent(BaseAgent):
             newY = y + dirY[k]
             # print((newX, newY), board.shape)
             if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
-                if board[newX, newY] in [0, 6, 7, 8] and not self.check_bomb((newX, newY), bombs):
+                if board[newX, newY] in [0, 5, 6, 7, 8] and not self.check_bomb((newX, newY), bombs):
                     valid_acts.append(k+1)
                 elif board[newX, newY] in [3] and can_kick:
                     valid_acts.append(k+1)
@@ -171,7 +171,7 @@ class HybridAgent(BaseAgent):
                 if utility.position_is_enemy(board, pos, enemies):
                     has_enemy = True
 
-                los_bomb = self.check_bomb((newX, newY), bombs)
+                los_bomb = self.check_bomb((newX, newY), bombs) or los_bomb
 
         if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs):
             has_bomb = True
