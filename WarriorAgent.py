@@ -42,7 +42,7 @@ class WarriorAgent(BaseAgent):
         self.cur_state = None
         self.last_reward = 0
         self.win = 0
-        self.model_file = 'qtable_intelli_actions-v0.pkl'
+        self.model_file = 'qtable_intelli_warrior-v0.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
@@ -72,9 +72,19 @@ class WarriorAgent(BaseAgent):
         if ammo > 0:
             valid_acts.append(5)
 
-        if len(valid_acts) == 0:
-            valid_acts.append(0)
+        valid_acts.append(0)
         return valid_acts
+
+    def convert_bombs(self, bomb_map):
+        '''Flatten outs the bomb array'''
+        ret = []
+        locations = np.where(bomb_map > 0)
+        for r, c in zip(locations[0], locations[1]):
+            ret.append(crazy_util.dotdict({
+                'position': (r, c),
+                'blast_strength': int(bomb_map[(r, c)])
+            }))
+        return ret
 
     def get_observation_state(self, board, pos, enemies, bomb_map, ammo):
         """
@@ -83,18 +93,8 @@ class WarriorAgent(BaseAgent):
         pos   -> tuple
         enemies -> list
         """
-        def convert_bombs(bomb_map):
-            '''Flatten outs the bomb array'''
-            ret = []
-            locations = np.where(bomb_map > 0)
-            for r, c in zip(locations[0], locations[1]):
-                ret.append(crazy_util.dotdict({
-                    'position': (r, c),
-                    'blast_strength': int(bomb_map[(r, c)])
-                }))
-            return ret
 
-        bombs = convert_bombs(np.array(bomb_map))
+        bombs = self.convert_bombs(np.array(bomb_map))
 
         has_bomb = False
         has_enemy = False
@@ -106,25 +106,23 @@ class WarriorAgent(BaseAgent):
             has_ammo = True
 
         x, y = pos
-        dirX = [-1,0,1,0]
-        dirY = [0,1,0,-1]
-        for k1 in dirX:
-            for k2 in dirY:
-                newX = x+k1
-                newY = y+k2
-                # print((newX, newY), board.shape)
-                if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
-                    if utility.position_is_bomb(bombs, (newX, newY)):
-                        has_bomb = True
-                    if utility.position_is_wood(board, (newX, newY)):
-                        has_wood = True
-                    if utility.position_is_enemy(board, pos, enemies):
-                        has_enemy = True
-
-        for bomb in bombs:
-            if ((abs(x-bomb['position'][0]) <= bomb['blast_strength'] and y == bomb['position'][1])
-                or (abs(y-bomb['position'][1]) <= bomb['blast_strength'] and x == bomb['position'][0])):
-                los_bomb = True
+        dirX = [-1,1, 0,0]
+        dirY = [ 0,0,-1,1]
+        for k in range(0, len(dirX)):
+            newX = x + dirX[k]
+            newY = y + dirY[k]
+            # print((newX, newY), board.shape)
+            if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
+                if utility.position_is_bomb(bombs, (newX, newY)):
+                    has_bomb = True
+                if utility.position_is_wood(board, (newX, newY)):
+                    has_wood = True
+                if utility.position_is_enemy(board, pos, enemies):
+                    has_enemy = True
+                for bomb in bombs:
+                    if ((abs(newX-bomb['position'][0]) <= bomb['blast_strength'] and newY == bomb['position'][1])
+                        or (abs(newY-bomb['position'][1]) <= bomb['blast_strength'] and newX == bomb['position'][0])):
+                        los_bomb = True
 
         if utility.position_is_bomb(bombs, (x,y)):
             has_bomb = True
@@ -190,7 +188,7 @@ class WarriorAgent(BaseAgent):
         # print(obs)
         self.eps -= 1/(obs['step_count']+100)
         if obs['step_count'] % 10 :
-            self.last_reward = obs['step_count']/1000
+            self.last_reward = -obs['step_count']/10000
         else:
             self.last_reward = 0
         return action
