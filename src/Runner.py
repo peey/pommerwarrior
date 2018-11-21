@@ -4,6 +4,7 @@ from pommerman import agents
 from WarriorAgent import WarriorAgent
 from CrazyAgent import CrazyAgent
 from HybridAgent import HybridAgent
+from DiscoAgent import DiscoAgent
 from pommerman import constants
 from ClassQL.MultiType import MultiTypeTeamAgent
 
@@ -18,7 +19,7 @@ def main():
     print(pommerman.REGISTRY)
     # exit(0)
 
-    wa = agents.DockerAgent("pommerwarrior", port=10800)
+    wa = DiscoAgent()
     agent_list = [
         agents.SimpleAgent(),
         agents.RandomAgent(),
@@ -43,11 +44,9 @@ def main():
             state, reward, done, info = env.step(actions)
             # print(reward)
         print('Episode {} finished'.format(i_episode))
-        """
         if wa.last_reward == 30:
             num_wins+=1
         print("Win Ratio: ", num_wins, i_episode+1)
-        """
     print("completed the episode")
     env.close()
 
