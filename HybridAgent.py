@@ -73,7 +73,7 @@ class HybridAgent(BaseAgent):
         if s.los_bomb: # los bomb means we will be killed by a bomb
             rewards -= 5
         if s.is_surrounded: # prevent from getting surrounded
-            rewards -= 1
+            rewards += 3
         if not s.has_ammo: # learn to pick up ammo
             rewards -= 2
         if not s.can_kick:  # learn to pick up can kick
@@ -95,15 +95,22 @@ class HybridAgent(BaseAgent):
         x, y = pos
         dirX = [-1,1, 0,0]
         dirY = [ 0,0,-1,1]
+        print(bombs)
         for k in range(0, len(dirX)):
             newX = x + dirX[k]
             newY = y + dirY[k]
             # print((newX, newY), board.shape)
             if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
-                if board[newX, newY] in [0, 5, 6, 7, 8] and not self.check_bomb((newX, newY), bombs):
+                cbom = self.check_bomb((newX, newY), bombs)
+                if ((board[newX, newY] in [0, 5, 6, 7, 8]) and (not cbom)):
                     valid_acts.append(k+1)
                 elif board[newX, newY] in [3] and can_kick:
                     valid_acts.append(k+1)
+                    print('contributed to suicide !')
+                elif board[newX, newY] in [0, 6, 7, 8] and utility.position_is_bomb(bombs, (x,y)):
+                    print('contributed to death !!!')
+                    valid_acts.append(k+1)
+                print('Appending ', k+1, newX, newY, cbom)
         if ammo > 0:
             valid_acts.append(5)
 
@@ -127,8 +134,8 @@ class HybridAgent(BaseAgent):
     def check_bomb(self, pos, bombs):
         (newX, newY) = pos
         for bomb in bombs:
-            if (((bomb['life']-1 <= bomb['blast_strength'] - abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
-                or ((bomb['life']-1 <= bomb['blast_strength'] - abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
+            if (((bomb['blast_strength'] - bomb['life'] +1 >= abs(newX-bomb['position'][0])) and newY == bomb['position'][1])
+                or ((bomb['blast_strength'] - bomb['life'] +1 >= abs(newY-bomb['position'][1])) and newX == bomb['position'][0])):
                 # print(bomb, pos)
                 return True
         return False
@@ -202,7 +209,6 @@ class HybridAgent(BaseAgent):
 
     def act(self, obs, action_space):
         # print(action_space, obs)
-        # print(obs['board'])
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
@@ -243,6 +249,7 @@ class HybridAgent(BaseAgent):
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        # print(actions, action, obs['can_kick'], self.cur_state)
+        print(obs['board'])
+        print(actions, action, obs['can_kick'], self.cur_state)
 
         return action
