@@ -230,14 +230,19 @@ class HybridAgent(BaseAgent):
             # print('random')
         else:
             action = actions[0]
+            indices = []
             for i in actions:
                 if self.Q[state_id, i] > self.Q[state_id, action]:
                     action = i
+            for act in actions:
+                if self.Q[state_id, act] == self.Q[state_id, action]:
+                    indices.append(act)
+            action = np.random.choice(indices)
         self.last_action = action
         # print(obs)
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        # print(actions, action, obs['can_kick'])
+        # print(actions, action, obs['can_kick'], self.cur_state)
 
         return action
