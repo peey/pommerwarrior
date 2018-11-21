@@ -70,14 +70,16 @@ class HybridAgent(BaseAgent):
 
     def reward_for_state(self, s): # Assume reward for winning is 30, for losing is -30
         rewards = 0
-        if s.los_bomb: # los bomb means we evaded or planted a bomb?
-            rewards += 5
-        if s.has_wood: # seek wood
-            rewards += 1
+        if s.los_bomb: # los bomb means we will be killed by a bomb
+            rewards -= 5
+        # if s.has_wood: # seek wood
+            # rewards += 1
         if not s.has_ammo: # learn to pick up ammo
             rewards -= 2
-        if s.has_enemy: # avoid enemey ever so slightly
+        if not s.can_kick:  # learn to pick up can kick
             rewards -= 1
+        # if s.has_enemy: # avoid enemey ever so slightly
+        #     rewards -= 1
         return rewards
 
     def get_possible_actions(self, board, pos, ammo, can_kick, bombs):
