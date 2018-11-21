@@ -18,14 +18,14 @@ def main():
     print(pommerman.REGISTRY)
     # exit(0)
 
-    # Create a set of agents (exactly four)
-    wa = HybridAgent()
+    wa = agents.DockerAgent("pommerwarrior", port=10800)
     agent_list = [
         agents.SimpleAgent(),
         agents.RandomAgent(),
         agents.SimpleAgent(),
         wa,
     ]
+
     # Make the "TeamCompetition" environment using the agent list
     env = pommerman.make('PommeFFACompetition-v0', agent_list)
     # env = pommerman.make('PommeFFACompetition-v0', agent_list)
@@ -43,9 +43,12 @@ def main():
             state, reward, done, info = env.step(actions)
             # print(reward)
         print('Episode {} finished'.format(i_episode))
+        """
         if wa.last_reward == 30:
             num_wins+=1
         print("Win Ratio: ", num_wins, i_episode+1)
+        """
+    print("completed the episode")
     env.close()
 
 

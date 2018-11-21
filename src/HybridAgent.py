@@ -208,7 +208,7 @@ class HybridAgent(BaseAgent):
 
 
     def act(self, obs, action_space):
-        # print(action_space, obs)
+        print(action_space)
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
@@ -252,4 +252,4 @@ class HybridAgent(BaseAgent):
         print(obs['board'])
         print(actions, action, obs['can_kick'], self.cur_state)
 
-        return action
+        return np.asscalar(action)
