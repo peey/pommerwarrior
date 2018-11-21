@@ -42,14 +42,14 @@ class WarriorAgent(BaseAgent):
         self.cur_state = None
         self.last_reward = 0
         self.win = 0
-        self.model_file = 'qtable_intelli_warrior-v0.pkl'
+        self.model_file = 'qtable_intelli_warrior-v1.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
         except Exception as e:
             self.Q = np.zeros((10, 6))
 
-    def get_possible_actions(self, board, pos, ammo):
+    def get_possible_actions(self, board, pos, ammo, bombs):
         """
         0 : Pass
         1 : Up
@@ -67,7 +67,7 @@ class WarriorAgent(BaseAgent):
             newY = y + dirY[k]
             # print((newX, newY), board.shape)
             if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
-                if board[newX, newY] in [0, 6, 7, 8]:
+                if board[newX, newY] in [0, 6, 7, 8] and not self.check_bomb((newX, newY), bombs):
                     valid_acts.append(k+1)
         if ammo > 0:
             valid_acts.append(5)
@@ -75,18 +75,27 @@ class WarriorAgent(BaseAgent):
         valid_acts.append(0)
         return valid_acts
 
-    def convert_bombs(self, bomb_map):
+    def convert_bombs(self, bomb_map, bomb_life):
         '''Flatten outs the bomb array'''
         ret = []
         locations = np.where(bomb_map > 0)
         for r, c in zip(locations[0], locations[1]):
             ret.append(crazy_util.dotdict({
                 'position': (r, c),
-                'blast_strength': int(bomb_map[(r, c)])
+                'blast_strength': int(bomb_map[(r, c)]),
+                'life': int(bomb_life[(r,c)])
             }))
         return ret
 
-    def get_observation_state(self, board, pos, enemies, bomb_map, ammo):
+    def check_bomb(self, pos, bombs):
+        (newX, newY) = pos
+        for bomb in bombs:
+            if ((bomb['life'] <= bomb['blast_strength'] - (abs(newX-bomb['position'][0]) and newY == bomb['position'][1]))
+                or (bomb['life'] <= bomb['blast_strength'] - (abs(newY-bomb['position'][1]) and newX == bomb['position'][0]))):
+                return True
+        return False
+
+    def get_observation_state(self, board, pos, enemies, bomb_map, bomb_life, ammo):
         """
         Need just the board layout to decide everything
         board -> np.array
@@ -94,7 +103,7 @@ class WarriorAgent(BaseAgent):
         enemies -> list
         """
 
-        bombs = self.convert_bombs(np.array(bomb_map))
+        bombs = self.convert_bombs(np.array(bomb_map), np.array(bomb_life))
 
         has_bomb = False
         has_enemy = False
@@ -119,10 +128,8 @@ class WarriorAgent(BaseAgent):
                     has_wood = True
                 if utility.position_is_enemy(board, pos, enemies):
                     has_enemy = True
-                for bomb in bombs:
-                    if ((abs(newX-bomb['position'][0]) <= bomb['blast_strength'] and newY == bomb['position'][1])
-                        or (abs(newY-bomb['position'][1]) <= bomb['blast_strength'] and newX == bomb['position'][0])):
-                        los_bomb = True
+
+                los_bomb = self.check_bomb((newX, newY), bombs)
 
         if utility.position_is_bomb(bombs, (x,y)):
             has_bomb = True
@@ -160,12 +167,13 @@ class WarriorAgent(BaseAgent):
 
 
     def act(self, obs, action_space):
-        # print(action_space, obs)
+        print(action_space, obs)
         # print(obs['board'])
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
                                            obs['bomb_blast_strength'],
+                                           obs['bomb_life'],
                                            obs['ammo'])
         self.cur_state = state
         if self.prev_state != None:
@@ -178,11 +186,13 @@ class WarriorAgent(BaseAgent):
         else:
             actions = self.get_possible_actions(obs['board'],
                                                 obs['position'],
-                                                obs['ammo'])
+                                                obs['ammo'],
+                                                self.convert_bombs(np.array(obs['bomb_blast_strength']), np.array(obs['bomb_life'])))
             action = actions[0]
             for i in actions:
                 if self.Q[state, i] > self.Q[state, action]:
                     action = i
+            print(self.cur_state, actions, action)
             # action = np.argmax(self.Q[state, :])
         self.last_action = action
         # print(obs)

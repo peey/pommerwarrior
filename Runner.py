@@ -18,22 +18,22 @@ def main():
     # Create a set of agents (exactly four)
     wa = WarriorAgent()
     agent_list = [
-        # agents.RandomAgent(),
+        agents.RandomAgent(),
         agents.SimpleAgent(),
         # agents.WarriorAgent(),
         # MultiTypeTeamAgent(),
-        # agents.RandomAgent(),
+        agents.RandomAgent(),
         # MultiTypeTeamAgent(),
         # agents.RandomAgent(),
-        agents.SimpleAgent(),
-        agents.SimpleAgent(),
+        # agents.SimpleAgent(),
+        # agents.SimpleAgent(),
         wa,
         # agents.SimpleAgent(),
         # agents.DockerAgent("pommerman/simple-agent", port=12345),
     ]
     # Make the "TeamCompetition" environment using the agent list
-    env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
-    # env = pommerman.make('PommeFFACompetition-v0', agent_list)
+    # env = pommerman.make('PommeFFACompetitionFast-v0', agent_list)
+    env = pommerman.make('PommeFFACompetition-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
     num_wins = 0
