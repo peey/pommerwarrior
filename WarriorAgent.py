@@ -42,7 +42,7 @@ class WarriorAgent(BaseAgent):
         self.cur_state = None
         self.last_reward = 0
         self.win = 0
-        self.model_file = 'qtable_intelli_warrior-v1.pkl'
+        self.model_file = 'qtable_intelli_warrior-v3.pkl'
         try:
             with open(self.model_file, 'rb') as f:
                 self.Q = pickle.load(f)
@@ -90,8 +90,9 @@ class WarriorAgent(BaseAgent):
     def check_bomb(self, pos, bombs):
         (newX, newY) = pos
         for bomb in bombs:
-            if ((bomb['life'] <= bomb['blast_strength'] - (abs(newX-bomb['position'][0]) and newY == bomb['position'][1]))
-                or (bomb['life'] <= bomb['blast_strength'] - (abs(newY-bomb['position'][1]) and newX == bomb['position'][0]))):
+            if ((bomb['life'] < bomb['blast_strength'] - (abs(newX-bomb['position'][0]) and newY == bomb['position'][1]))
+                or (bomb['life'] < bomb['blast_strength'] - (abs(newY-bomb['position'][1]) and newX == bomb['position'][0]))):
+                # print(bomb, pos)
                 return True
         return False
 
@@ -148,7 +149,7 @@ class WarriorAgent(BaseAgent):
             state = 3
 
         if has_ammo:
-            state = 2 * state
+            state = 5 + state
 
         return state
 
@@ -183,6 +184,7 @@ class WarriorAgent(BaseAgent):
         if np.random.uniform(0,1) < self.eps:
             # Random action from the space
             action = action_space.sample()
+            # print('Random Action -- ', self.cur_state, action)
         else:
             actions = self.get_possible_actions(obs['board'],
                                                 obs['position'],
@@ -192,7 +194,7 @@ class WarriorAgent(BaseAgent):
             for i in actions:
                 if self.Q[state, i] > self.Q[state, action]:
                     action = i
-            # print(self.cur_state, actions, action)
+            # print('Chosen Action -- ', self.cur_state, actions, action)
             # action = np.argmax(self.Q[state, :])
         self.last_action = action
         # print(obs)
