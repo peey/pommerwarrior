@@ -28,7 +28,7 @@ def main():
     ]
 
     # Make the "TeamCompetition" environment using the agent list
-    env = pommerman.make('PommeFFATeamCompetition-v0', agent_list)
+    env = pommerman.make('PommeTeamCompetition-v0', agent_list)
     # env = pommerman.make('PommeFFACompetition-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
