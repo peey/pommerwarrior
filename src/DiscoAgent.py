@@ -100,7 +100,7 @@ class DiscoAgent(BaseAgent):
         x, y = pos
         dirX = [-1,1, 0,0]
         dirY = [ 0,0,-1,1]
-        print(bombs)
+        #print(bombs)
         for k in range(0, len(dirX)):
             newX = x + dirX[k]
             newY = y + dirY[k]
@@ -217,7 +217,7 @@ class DiscoAgent(BaseAgent):
 
 
     def act(self, obs, action_space):
-        print(obs)
+        #print(obs)
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['teammate'],
