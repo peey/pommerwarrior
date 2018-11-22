@@ -145,7 +145,7 @@ class DiscoAgent(BaseAgent):
                 return True
         return False
 
-    def get_observation_state(self, board, pos, enemies, bomb_map, bomb_life, ammo, can_kick):
+    def get_observation_state(self, board, pos, teammate, enemies, bomb_map, bomb_life, ammo, can_kick):
         """
         Need just the board layout to decide everything
         board -> np.array
@@ -153,7 +153,6 @@ class DiscoAgent(BaseAgent):
         enemies -> list
 
         """
-        print(ammo)
 
         bombs = self.convert_bombs(np.array(bomb_map), np.array(bomb_life))
 
@@ -193,7 +192,7 @@ class DiscoAgent(BaseAgent):
         if blocks > 2:
             is_surrounded = True
 
-        enemy_direction, powerup_direction = ep.scanboard(board, pos) 
+        enemy_direction, powerup_direction = ep.scanboard(board, pos, teammate.value) 
 
         return State(has_bomb, has_enemy, is_surrounded, los_bomb, has_ammo, can_kick, enemy_direction, powerup_direction)
 
@@ -218,9 +217,10 @@ class DiscoAgent(BaseAgent):
 
 
     def act(self, obs, action_space):
-        print(action_space)
+        print(obs)
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
+                                           obs['teammate'],
                                            obs['enemies'],
                                            obs['bomb_blast_strength'],
                                            obs['bomb_life'],

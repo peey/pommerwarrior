@@ -49,9 +49,9 @@ def closest_point(arr, pt): # arr is array of row and columns
     return (rows[closest], cols[closest])
     
 
-def scanboard(board, pos): # for now, just gives directions for nearest enemy and powerup
+def scanboard(board, pos, teammate): # for now, just gives directions for nearest enemy and powerup
     enemies = np.where(board > 9)
-    powerups = np.where((9 > board) & (board > 5))
+    powerups = np.where((9 > board) & (board > 5) & (board != teammate))
 
     if enemies[0].size != 0:
         closest_enemy = directions_from_coordinates(pos, closest_point(enemies, pos))

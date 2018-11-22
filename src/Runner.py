@@ -35,7 +35,7 @@ def main():
     num_wins = 0
     for i_episode in range(train_for):
 
-        constants.MAX_STEPS = 200
+        constants.MAX_STEPS = 200 # doesn't seem to be working
         state = env.reset()
         done = False
         while not done:
