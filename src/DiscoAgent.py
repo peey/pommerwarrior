@@ -3,7 +3,7 @@ from pommerman import constants
 from pommerman import utility
 
 import collections
-from WarriorAgent import WarriorAgent
+# from WarriorAgent import WarriorAgent
 import itertools
 
 import math
