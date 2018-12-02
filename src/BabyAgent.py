@@ -14,7 +14,7 @@ import crazy_util
 import enhanced_percepts as ep
 import enhanced_actions  as ea
 
-AliveState = collections.namedtuple("AliveState", ["own_bomb_nearby", "enemy_bomb_nearby", "enemy_nearby", 
+AliveState = collections.namedtuple("AliveState", ["bomb_nearby", "enemy_nearby", 
                                                    "is_surrounded", "los_bomb", "ammo", 
                                                    "can_kick", "blast_strength", "enemies_alive", 
                                                    "nearby_enemy_has_bomb", "nearby_enemy_can_kick"])
@@ -33,7 +33,7 @@ class Proximity(Enum):
     IMMIDIATE = 2 # in the 8 square surrounding agent
     CLOSE     = 3
 
-alive_component_state_space = AliveState([True, False], [Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE], [Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE],
+alive_component_state_space = AliveState([Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE], [Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE],
                                          [True, False], [LosBomb.NO, LosBomb.RED, LosBomb.YELLOW], [0, 1, 2, 3], 
                                          [True, False], [BlastStrength.LOW, BlastStrength.HIGH], [1, 2, 3], 
                                          [True, False], [True, False]) # we don't have to worry about nearby enemy's blast strength because "loa_bomb" calculation will take care of it
