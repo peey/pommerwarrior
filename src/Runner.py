@@ -10,7 +10,7 @@ from ClassQL.MultiType import MultiTypeTeamAgent
 
 
 def main():
-    train_for = 1 # episodes
+    train_for = 100000 # episodes
     '''Simple function to bootstrap a game.
        
        Example training environment.
@@ -28,7 +28,7 @@ def main():
     ]
 
     # Make the "TeamCompetition" environment using the agent list
-    env = pommerman.make('PommeFFACompetition-v0', agent_list)
+    env = pommerman.make('PommeTeamCompetition-v0', agent_list)
     # env = pommerman.make('PommeFFACompetition-v0', agent_list)
 
     # Run the episodes just like OpenAI Gym
@@ -39,7 +39,7 @@ def main():
         state = env.reset()
         done = False
         while not done:
-            env.render()
+            #env.render()
             actions = env.act(state)
             state, reward, done, info = env.step(actions)
             # print(reward)
