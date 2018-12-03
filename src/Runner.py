@@ -24,7 +24,7 @@ def main(train_for, to_render):
     # env = pommerman.make('PommeTeamCompetition-v0', agent_list)
     agents_list = agents["ours"] + agents["theirs"]
     assert(len(agents_list) == 4)
-    env = pom.make('PommeFFACompetitionFast-v0', agents_list)
+    env = pom.make('PommeFFACompetition-v0', agents_list)
 
 
     complete_game_count = 0
@@ -43,6 +43,7 @@ def main(train_for, to_render):
             if to_render:
                 env.render()
             actions = env.act(state)
+            #print("okay", actions)
             state, reward, done, info = env.step(actions) # done refers to if the whole game has ended or not
             our_agents_dead = [reward[i] == -1 for i in range(len(agents["ours"]))] # we may be dead and yet game isn't done as other players are competing. Little do we care.
 

@@ -1,4 +1,5 @@
 import numpy as np
+from pommerman import constants
 
 all_pairs_shortest_paths = np.full((11, 11, 11, 11), None, dtype=object)
 dist = None 
@@ -144,6 +145,22 @@ def get_agent_new_pos(board, enemy_id, last_pos): #O(5), as if anyone cares thou
         if 0 <= xn < m and 0 <= yn < n and board[xn, yn] == enemy_id:
             return (xn, yn)
     # else enemy is dead
+
+def is_pos_surrounded(board, pos, self_id):
+    m, n = board.shape
+    x, y = pos
+
+    count = 0
+    for xi, yi in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]:
+        if 0 <= xi < m and 0 <= yi < n:
+            if 1 <= board[xi, yi] <= 3:
+                count += 1
+            elif (10 <= board[xi, yi] and board[xi, yi] != self_id):
+                count += 1
+        else:
+            count += 1 #walls ka count
+
+    return count > 2
 
 """
 def get_agent_new_pos(board, enemy_id):

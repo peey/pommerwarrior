@@ -2,6 +2,7 @@ import numpy as np
 from util import Proximity, BlastStrength, DeadState, Actions
 import enhanced_percepts as ep
 import BabyAgent
+from pommerman import constants
 
 """
 Enhanced actions could give control to a deterministic script for multiple time steps
@@ -34,6 +35,59 @@ class VirtualAction():
 
     def next_action(self, state, obs):
         pass
+
+class EscapeBoxedIn(VirtualAction):
+    def __init__(self, agent): # agent's object may contains richer info about state which doesn't concern the MDP
+        self.agent = agent
+        self.target = None
+
+    def is_valid(self, state, obs): 
+        #print("\t", state.is_surrounded, self.get_target(state, obs))
+        return state.is_surrounded and self.get_target(state, obs)
+
+    def is_active(self, state, obs): # once we aren't surrounded, no longer valid
+        if self.is_valid(state, obs):
+            return True
+        else:
+            self.target = None
+            return False
+
+    def get_target(self, state, obs): # for now, doesn't clear the passage or anything, just looks for a box nearby which isn't surrounded and embarks on a path to it
+        pos    = obs["position"]
+        x, y   = pos
+        board  = obs["board"]
+        m, n   = obs["board"].shape
+        window = board[max(x - 3, 0):min(x + 4, m), max(y - 3, 0):min(y + 4, n)]
+
+        clear_spots = np.where((board == 0) | ((board >= 6) & (board <= 8)))
+
+        row_coord, col_coord = clear_spots
+        distances = np.array([ep.get_shortest_distance_between(row_coord[i], col_coord[i], x, y) for i in range(n)])
+
+        for ix in np.argsort(distances):
+            xn, yn = row_coord[ix], col_coord[ix]
+
+            if ep.is_pos_surrounded(board, pos, self.agent.agent_value):
+                self.target = (xn, yn)
+                break
+
+        if not self.target: # this should be near impossible
+            return False
+        else:
+            shortest_path = ep.get_shortest_path_between(x, y, *self.target)
+            if not shortest_path:
+                return False
+            else:
+                return True
+
+    def next_action(self, state, obs):
+        print("pos", obs["position"])
+        print("target", self.target)
+        shortest_path = ep.get_shortest_path_between(*obs["position"], *self.target)
+        print("act", action_to_reach_adj_coords(obs["position"], shortest_path[0]))
+        print("step",  shortest_path[0])
+        return action_to_reach_adj_coords(obs["position"], shortest_path[0])
+
 
 class ChaseNearestPowerup(VirtualAction):
     def __init__(self, agent): # agent's object may contains richer info about state which doesn't concern the MDP
@@ -152,8 +206,8 @@ class ChaseNearestEnemy(VirtualAction):
         return action_to_reach_adj_coords(obs["position"], adj_coords)
 
 def action_to_reach_adj_coords(ours, theirs): # the 4 coords directly adjacent to you
-    x1, y1 = ours
-    x2, y2 = theirs
+    y1, x1 = ours # y, x? yes indeed. That's how the pommer lords chose to do it
+    y2, x2 = theirs 
     delx = x2 - x1
     dely = y2 - y1
     #print(ours, theirs, delx, dely)

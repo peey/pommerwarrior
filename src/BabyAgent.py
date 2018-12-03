@@ -58,8 +58,9 @@ class BabyAgent(BaseAgent):
         self.virtual_action = None
         self.agent_value = None
         self.virtual_actions = {
-          Actions.CHASE_NEAREST_ENEMY  : ea.ChaseNearestEnemy(self),
-          Actions.CHASE_NEAREST_POWERUP: ea.ChaseNearestPowerup(self)
+          Actions.CHASE_NEAREST_ENEMY   : ea.ChaseNearestEnemy(self),
+          Actions.CHASE_NEAREST_POWERUP : ea.ChaseNearestPowerup(self),
+          Actions.ESCAPE_BOXED_IN       : ea.EscapeBoxedIn(self)
         }
 
         self.unpickle_or_default()
@@ -200,7 +201,6 @@ class BabyAgent(BaseAgent):
 
         x, y = obs['position']
 
-        surrounding_blocks = 0
         for del_x in range(-2, 3):
             for del_y in range(-2, 3):
                 newX = x + del_x
@@ -211,18 +211,16 @@ class BabyAgent(BaseAgent):
                 if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
                     if utility.position_is_bomb(bombs, (newX, newY)):
                         d['bomb_nearby'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
-                    if immediate_zone and utility.position_is_rigid(board, (newX, newY)):
-                        surrounding_blocks += 1
                     if utility.position_is_enemy(obs['board'], obs['position'], obs['enemies']):
                         d['has_enemy'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
 
                     d['los_bomb'] = self.check_bomb((newX, newY), bombs) or d['los_bomb']
 
         if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs): # TODO why two conditions?
-            d.bomb_nearby = Proximity.IMMEDIATE
+            d["bomb_nearby"] = Proximity.IMMEDIATE
 
-        if surrounding_blocks > 2:
-            d.is_surrounded = True
+        d["is_surrounded"] = ep.is_pos_surrounded(obs["board"], obs["position"], self.agent_value)
+        #print(d["is_surrounded"])
 
         return AliveState(**d)
 
@@ -261,6 +259,7 @@ class BabyAgent(BaseAgent):
                 self.accu_va_reward += self.reward_for_state(self.cur_state)
                 return self.virtual_action.next_action(self.cur_state, obs)
             else:
+                #print("completed virtual action %d for %d steps" % (self.last_action, self.accu_va_steps))
                 reward = self.accu_va_reward / self.accu_va_steps # rationale: this action is just a "faster" way to get to a desired state. If we let rewards accumulate, relative to other actions, it won't work (e.g. for rewards that are ctsly given like -ve for can't kick....)
                 #print("concluded virtual action %s with reward %f for %d steps" % (self.last_action, reward, self.accu_va_steps))
                 self.virtual_action = None # reset va variables and continue
