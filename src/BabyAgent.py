@@ -4,6 +4,7 @@ from pommerman import utility
 
 import collections
 import itertools
+import random
 from util import Proximity, BlastStrength, DeadState, Actions
 
 import math
@@ -46,9 +47,7 @@ class BabyAgent(BaseAgent):
 
         self.eps = 0.01
 
-        self.max_steps = 100
         self.lr_rate_naught = 0.8
-        self.lr_rate = 0.8
         self.gamma = 0.96
 
         self.prev_state = None # will be tuples, we convert to index when we have to do lookup
@@ -59,7 +58,8 @@ class BabyAgent(BaseAgent):
         self.virtual_action = None
         self.agent_value = None
         self.virtual_actions = {
-          Actions.CHASE_NEAREST: ea.ChaseNearestEnemy(self)
+          Actions.CHASE_NEAREST_ENEMY  : ea.ChaseNearestEnemy(self),
+          Actions.CHASE_NEAREST_POWERUP: ea.ChaseNearestPowerup(self)
         }
 
         self.unpickle_or_default()
@@ -82,12 +82,13 @@ class BabyAgent(BaseAgent):
             self.N = np.zeros((len(composite_state_space), len(Actions)))
 
     # citation: exploration function taken from my own (2016254) submission to PA4
-    def exploration_function(state_ix, action_ix):
+    def exploration_function(self, state_ix, action_ix):
         u = self.Q[state_ix, action_ix]
         n = self.N[state_ix, action_ix]
 
+        #print(u, n)
         if (n < 100):
-            return 0.8 + (random.random()/5)
+            return 0.8 + (np.random.uniform()/5)
         else:
             return u
 
@@ -135,6 +136,7 @@ class BabyAgent(BaseAgent):
 
         for i in  range(6, len(Actions)):
             if self.virtual_actions[i].is_valid(self.cur_state, obs):
+                #print("appending act ", i)
                 valid_acts.append(i)
 
         return valid_acts
@@ -232,13 +234,16 @@ class BabyAgent(BaseAgent):
 
         predict = self.Q[from_state_id, action_taken]
         target = reward + self.gamma * np.max(self.Q[to_state_id, :])
-        self.Q[from_state_id, action_taken] = (1 - self.lr_rate) * predict + self.lr_rate * target 
 
-        self.lr_rate = self.lr_rate_naught / (1 + math.log(1 + self.N[from_state_id, action_taken]))
+        n = min(self.experience, self.N[from_state_id, action_taken]/20)
+        lr_rate = self.lr_rate_naught / (1 + math.log(1 + n))
+        #print(lr_rate, self.N[from_state_id, action_taken])
+        self.Q[from_state_id, action_taken] = (1 - lr_rate) * predict + lr_rate * target 
+
 
     def episode_end(self, reward):
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
-        print('win status of last episode : ', reward)
+        #print('win status of last episode : ', reward)
         self.experience += 1
         self.pickle()
 
@@ -252,12 +257,12 @@ class BabyAgent(BaseAgent):
 
         if self.virtual_action != None: # virtual action is continuing
             self.accu_va_steps  += 1 
-            if self.virtual_action.is_active(state, obs):
+            if self.virtual_action.is_active(self.cur_state, obs):
                 self.accu_va_reward += self.reward_for_state(self.cur_state)
-                return self.virtual_action.next_action(state, obs)
+                return self.virtual_action.next_action(self.cur_state, obs)
             else:
                 reward = self.accu_va_reward / self.accu_va_steps # rationale: this action is just a "faster" way to get to a desired state. If we let rewards accumulate, relative to other actions, it won't work (e.g. for rewards that are ctsly given like -ve for can't kick....)
-                print("concluded virtual action with reward %f for %d steps" % (reward, self.accu_va_steps))
+                #print("concluded virtual action %s with reward %f for %d steps" % (self.last_action, reward, self.accu_va_steps))
                 self.virtual_action = None # reset va variables and continue
                 self.accu_va_reward = 0
                 self.accu_va_steps  = 0
@@ -265,7 +270,7 @@ class BabyAgent(BaseAgent):
             reward = self.reward_for_state(self.cur_state)
 
         if self.prev_state == None: # can initialize stuff
-            ea.floyd_warshall(np.array(obs['board']))
+            ep.floyd_warshall(np.array(obs['board']))
 
         if self.prev_state != None:
             self.learn(self.prev_state, self.cur_state, reward, self.last_action)
@@ -274,32 +279,24 @@ class BabyAgent(BaseAgent):
 
         self.prev_state = state
         action = 0
-        actions = self.get_possible_actions(obs, obs['board'],
+        valid_actions = self.get_possible_actions(obs, obs['board'],
                                             obs['position'],
                                             obs['ammo'],
                                             obs['can_kick'],
                                             self.convert_bombs(np.array(obs['bomb_blast_strength']), np.array(obs['bomb_life'])))
 
         if np.random.uniform(0,1) < self.eps:
-            action = np.random.choice(actions)
+            action = random.choice(valid_actions)
         else:
-            # randomly choose between actions with same q-value
-            action = actions[0]
-            indices = []
-            for i in actions:
-                if self.Q[state_id, i] > self.Q[state_id, action]:
-                    action = i
-            for act in actions:
-                if self.Q[state_id, act] == self.Q[state_id, action]:
-                    indices.append(act)
-            action = np.random.choice(indices)
+            action_ix = np.argmax([self.exploration_function(state_id, action) for action in valid_actions])
+            action = valid_actions[action_ix]
 
         self.last_action = action
         self.last_reward = self.reward_for_state(self.cur_state)
 
         if action >= 6: # it's a virtual action
+            #print("picked virtual action", action, action in valid_actions, valid_actions)
             self.virtual_action = self.virtual_actions[action]
-            print("picking virtual action")
             return self.virtual_action.next_action(self.cur_state, obs)
 
-        return np.asscalar(action)
+        return action

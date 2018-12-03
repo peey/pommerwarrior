@@ -39,4 +39,5 @@ class Actions(IntEnum):
     LEFT = 3 
     RIGHT = 4
     BOMB = 5
-    CHASE_NEAREST = 6 # virtual actions start at index 6
+    CHASE_NEAREST_ENEMY   = 6 # virtual actions start at index 6
+    CHASE_NEAREST_POWERUP = 7 
