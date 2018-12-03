@@ -30,7 +30,7 @@ component_state_space = State([True, False], [True, False], [True, False], [True
 # the following has a deterministic ordering
 composite_state_space = [State(*record) for record in itertools.product(*component_state_space)]
 
-print(len(composite_state_space))
+#print(len(composite_state_space))
 
 # since dict lookup is O(1), let's cache it
 state_to_index_map = {state: composite_state_space.index(state) for state in composite_state_space}
@@ -111,11 +111,11 @@ class DiscoAgent(BaseAgent):
                     valid_acts.append(k+1)
                 elif board[newX, newY] in [3] and can_kick:
                     valid_acts.append(k+1)
-                    print('contributed to suicide !')
+                    #print('contributed to suicide !')
                 elif board[newX, newY] in [0, 6, 7, 8] and utility.position_is_bomb(bombs, (x,y)):
-                    print('contributed to death !!!')
+                    #print('contributed to death !!!')
                     valid_acts.append(k+1)
-                print('Appending ', k+1, newX, newY, cbom)
+                #print('Appending ', k+1, newX, newY, cbom)
         if ammo > 0:
             valid_acts.append(5)
 
@@ -212,12 +212,11 @@ class DiscoAgent(BaseAgent):
         self.last_reward = reward * 30
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         # print(self.Q)
-        print('win status of last episode : ', reward)
+        # print('win status of last episode : ', reward)
         self.pickle()
 
 
     def act(self, obs, action_space):
-        #print(obs)
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['teammate'],
@@ -259,7 +258,7 @@ class DiscoAgent(BaseAgent):
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        print(obs['board'])
-        print(actions, action, obs['can_kick'], self.cur_state)
+        #print(obs['board'])
+        #print(actions, action, obs['can_kick'], self.cur_state)
 
         return np.asscalar(action)
