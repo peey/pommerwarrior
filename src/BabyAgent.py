@@ -4,7 +4,7 @@ from pommerman import utility
 
 import collections
 import itertools
-from enum import Enum
+from util import Proximity, BlastStrength, DeadState, Actions
 
 import math
 import numpy as np
@@ -13,35 +13,18 @@ import crazy_util
 
 import enhanced_percepts as ep
 import enhanced_actions  as ea
+import os
 
 AliveState = collections.namedtuple("AliveState", ["bomb_nearby", "enemy_nearby", 
                                                    "is_surrounded", "los_bomb", "ammo", 
                                                    "can_kick", "blast_strength", "enemies_alive", 
                                                    "nearby_enemy_has_bomb", "nearby_enemy_can_kick"])
-class LosBomb(Enum):
-    NO     = 1 # no bomb
-    RED    = 2 # 2 or fewer ticks remiaining
-    # ORANGE = 3 # 6 or fewer ticks remaining
-    YELLOW = 4 # 6-10 ticks remaining
 
-class BlastStrength(Enum):
-    LOW  = 1 # 1 or 2
-    HIGH = 2 # more than 2
-
-class Proximity(Enum):
-    NONE      = 1
-    IMMIDIATE = 2 # in the 8 square surrounding agent
-    CLOSE     = 3
-
-alive_component_state_space = AliveState([Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE], [Proximity.NONE, Proximity.IMMIDIATE, Proximity.CLOSE],
-                                         [True, False], [LosBomb.NO, LosBomb.RED, LosBomb.YELLOW], [0, 1, 2, 3], 
+alive_component_state_space = AliveState([Proximity.NONE, Proximity.IMMEDIATE, Proximity.CLOSE], [Proximity.NONE, Proximity.IMMEDIATE, Proximity.CLOSE],
+                                         [True, False], [True, False], [0, 1, 2, 3], 
                                          [True, False], [BlastStrength.LOW, BlastStrength.HIGH], [1, 2, 3], 
                                          [True, False], [True, False]) # we don't have to worry about nearby enemy's blast strength because "loa_bomb" calculation will take care of it
 
-class DeadState(Enum):
-    SUICIDE = 1
-    KILLED_BY_ENEMY = 2
-    WON = 3
 
 # events for reward - killed enemy, picked ammo, picked something. In these cases we should look back and give reward to sequence of states leading up to this.
 
@@ -54,71 +37,81 @@ print(len(composite_state_space)) # about 20000 states
 # since dict lookup is O(1), let's cache it
 state_to_index_map = {state: composite_state_space.index(state) for state in composite_state_space}
 
+
 class BabyAgent(BaseAgent):
 
     def __init__(self, *args, **kwargs):
-        super(DiscoAgent, self).__init__(*args, **kwargs)
-        self.eps_naught = 0.6      # randomness factor
-        self.eps = 0.6      
-        self.epochs = 10000
-        self.max_steps = 100
-        self.lr_rate_naught = 0.4
-        self.lr_rate = 0.4
-        self.gamma = 0.96
-        self.prev_state = None
-        self.cur_state = None # will be tuples, we convert to index when we have to do lookup
-        self.last_reward = 0
-        self.win = 0
-        self.model_file = 'qtable_disco-v0.pkl'
-        self.unpickle_or_default()
+        super(BabyAgent, self).__init__(*args, **kwargs)
+        self.model_file = 'qtable_baby-v0.pkl'
 
-    def update_params(self):
-        multiplier = (1 / (1 + math.log(self.experience)))
-        self.lr_rate =  multiplier * self.lr_rate_naught
-        self.eps = multiplier * self.eps_naught 
+        self.eps = 0.01
+
+        self.max_steps = 100
+        self.lr_rate_naught = 0.8
+        self.lr_rate = 0.8
+        self.gamma = 0.96
+
+        self.prev_state = None # will be tuples, we convert to index when we have to do lookup
+        self.cur_state = None 
+
+        self.accu_va_reward = 0
+        self.accu_va_steps = 0
+        self.virtual_action = None
+        self.agent_value = None
+        self.virtual_actions = {
+          Actions.CHASE_NEAREST: ea.ChaseNearestEnemy(self)
+        }
+
+        self.unpickle_or_default()
 
     def pickle(self):
         with open(self.model_file, 'wb') as f:
             pickle.dump(self.experience, f)
             pickle.dump(self.Q, f)
+            pickle.dump(self.N, f)
     
     def unpickle_or_default(self):
         try:
             with open(self.model_file, 'rb') as f:
                 self.experience = pickle.load(f) # number of episodes we've been trained on so far
                 self.Q = pickle.load(f)
+                self.N = pickle.load(f)
         except Exception as e:
             self.experience = 0
-            self.Q = np.zeros((len(composite_state_space), 6))
+            self.Q = np.zeros((len(composite_state_space), len(Actions)))
+            self.N = np.zeros((len(composite_state_space), len(Actions)))
 
-    def reward_for_state(self, s): # Assume reward for winning is 30, for losing is -30
+    # citation: exploration function taken from my own (2016254) submission to PA4
+    def exploration_function(state_ix, action_ix):
+        u = self.Q[state_ix, action_ix]
+        n = self.N[state_ix, action_ix]
+
+        if (n < 100):
+            return 0.8 + (random.random()/5)
+        else:
+            return u
+
+    def reward_for_state(self, s): # Assume reward for winning is 1, for losing is -1
         rewards = 0
+
         if s.los_bomb: # los bomb means we will be killed by a bomb
-            rewards -= 5
+            rewards -= 0.05
         if s.is_surrounded: # prevent from getting surrounded
-            rewards += 3
-        if not s.has_ammo: # learn to pick up ammo
-            rewards -= 2
+            rewards -= 0.04
+        if s.ammo == 0: # learn to pick up ammo when you have none. Not too negative because we don't wanna punish bomb planting
+            rewards -= 0.01
         if not s.can_kick:  # learn to pick up can kick
-            rewards -= 1
-        # if s.has_enemy: # avoid enemey ever so slightly
-        #     rewards -= 1
+            rewards -= 0.01
+        if s.blast_strength != BlastStrength.HIGH:
+            rewards -= 0.01
+
         return rewards
 
-    def get_possible_actions(self, board, pos, ammo, can_kick, bombs):
-        """
-        0 : Pass
-        1 : Up
-        2 : Down
-        3 : Left
-        4 : Right
-        5 : Bomb
-        """
+    def get_possible_actions(self, obs, board, pos, ammo, can_kick, bombs):
         valid_acts = [0]
         x, y = pos
-        dirX = [-1,1, 0,0]
-        dirY = [ 0,0,-1,1]
-        print(bombs)
+        dirX = [-1, 1,  0, 0]
+        dirY = [ 0, 0, -1, 1]
         for k in range(0, len(dirX)):
             newX = x + dirX[k]
             newY = y + dirY[k]
@@ -129,16 +122,20 @@ class BabyAgent(BaseAgent):
                     valid_acts.append(k+1)
                 elif board[newX, newY] in [3] and can_kick:
                     valid_acts.append(k+1)
-                    print('contributed to suicide !')
+                    #print('contributed to suicide !')
                 elif board[newX, newY] in [0, 6, 7, 8] and utility.position_is_bomb(bombs, (x,y)):
-                    print('contributed to death !!!')
+                    #print('contributed to death !!!')
                     valid_acts.append(k+1)
-                print('Appending ', k+1, newX, newY, cbom)
+                #print('Appending ', k+1, newX, newY, cbom)
         if ammo > 0:
             valid_acts.append(5)
 
         if len(valid_acts) > 1 and utility.position_is_bomb(bombs, (pos[0], pos[1])) and self.check_bomb((pos[0], pos[1]), bombs):
             valid_acts.pop(0)
+
+        for i in  range(6, len(Actions)):
+            if self.virtual_actions[i].is_valid(self.cur_state, obs):
+                valid_acts.append(i)
 
         return valid_acts
 
@@ -163,106 +160,130 @@ class BabyAgent(BaseAgent):
                 return True
         return False
 
-    def get_observation_state(self, board, pos, teammate, enemies, bomb_map, bomb_life, ammo, can_kick):
+    def get_observation_state(self, obs):
         """
         Need just the board layout to decide everything
         board -> np.array
         pos   -> tuple
         enemies -> list
 
+        Interesting keys: 
+           obs['board'],
+           obs['position'],
+           obs['teammate'],
+           obs['enemies'],
+           obs['bomb_blast_strength'],
+           obs['bomb_life'],
+           obs['ammo'],
+           obs['can_kick']
         """
 
-        bombs = self.convert_bombs(np.array(bomb_map), np.array(bomb_life))
+        board = obs["board"]
 
-        has_bomb = False
-        has_enemy = False
-        # is_surrounded = False
-        is_surrounded = False
-        los_bomb = False
-        has_ammo = False
-        # can kick is also a valid state
+        bombs = self.convert_bombs(np.array(obs["bomb_blast_strength"]), np.array(obs["bomb_life"]))
 
-        if ammo > 0:
-            has_ammo = True
+        d = collections.OrderedDict({
+            "bomb_nearby": Proximity.NONE,
+            "enemy_nearby": Proximity.NONE,
+            "is_surrounded": False,
+            "los_bomb": False,
+            "ammo": 3 if obs['ammo'] > 3 else obs['ammo'],
+            "can_kick": obs['can_kick'],
+            "blast_strength": BlastStrength.LOW if obs['blast_strength'] <= 2 else BlastStrength.HIGH ,
+            "enemies_alive": len(list(filter(lambda enemy: enemy.value in obs['alive'], obs['enemies']))),
+            "nearby_enemy_has_bomb": False,
+            "nearby_enemy_can_kick": False
+        })
 
-        x, y = pos
-        dirX = [-1,1, 0,0]
-        dirY = [ 0,0,-1,1]
-        blocks = 0
-        for k in range(0, len(dirX)):
-            newX = x + dirX[k]
-            newY = y + dirY[k]
-            # print((newX, newY), board.shape)
-            if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
-                if utility.position_is_bomb(bombs, (newX, newY)):
-                    has_bomb = True
-                if utility.position_is_rigid(board, (newX, newY)):
-                    # is_surrounded = True
-                    blocks += 1
-                if utility.position_is_enemy(board, pos, enemies):
-                    has_enemy = True
 
-                los_bomb = self.check_bomb((newX, newY), bombs) or los_bomb
+        x, y = obs['position']
 
-        if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs):
-            has_bomb = True
+        surrounding_blocks = 0
+        for del_x in range(-2, 3):
+            for del_y in range(-2, 3):
+                newX = x + del_x
+                newY = y + del_y
 
-        if blocks > 2:
-            is_surrounded = True
+                immediate_zone = abs(del_x) <= 1 and abs(del_y) <= 1
 
-        enemy_direction, powerup_direction = ep.scanboard(board, pos, teammate.value) 
+                if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
+                    if utility.position_is_bomb(bombs, (newX, newY)):
+                        d['bomb_nearby'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
+                    if immediate_zone and utility.position_is_rigid(board, (newX, newY)):
+                        surrounding_blocks += 1
+                    if utility.position_is_enemy(obs['board'], obs['position'], obs['enemies']):
+                        d['has_enemy'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
 
-        return State(has_bomb, has_enemy, is_surrounded, los_bomb, has_ammo, can_kick, enemy_direction, powerup_direction)
+                    d['los_bomb'] = self.check_bomb((newX, newY), bombs) or d['los_bomb']
+
+        if utility.position_is_bomb(bombs, (x,y)) or self.check_bomb((x,y), bombs): # TODO why two conditions?
+            d.bomb_nearby = Proximity.IMMEDIATE
+
+        if surrounding_blocks > 2:
+            d.is_surrounded = True
+
+        return AliveState(**d)
 
 
     def learn(self, from_state, to_state, reward, action_taken):
         from_state_id = state_to_index_map[from_state]
         to_state_id = state_to_index_map[to_state]
+        self.N[from_state_id, action_taken] += 1
 
         predict = self.Q[from_state_id, action_taken]
         target = reward + self.gamma * np.max(self.Q[to_state_id, :])
         self.Q[from_state_id, action_taken] = (1 - self.lr_rate) * predict + self.lr_rate * target 
 
-        self.experience += 1
-        self.update_params()
+        self.lr_rate = self.lr_rate_naught / (1 + math.log(1 + self.N[from_state_id, action_taken]))
 
     def episode_end(self, reward):
-        self.last_reward = reward * 30
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
-        # print(self.Q)
         print('win status of last episode : ', reward)
+        self.experience += 1
         self.pickle()
 
 
     def act(self, obs, action_space):
-        print(obs)
-        state = self.get_observation_state(obs['board'],
-                                           obs['position'],
-                                           obs['teammate'],
-                                           obs['enemies'],
-                                           obs['bomb_blast_strength'],
-                                           obs['bomb_life'],
-                                           obs['ammo'],
-                                           obs['can_kick'])
+        state = self.get_observation_state(obs)
         state_id = state_to_index_map[state]
 
         self.cur_state = state
+        x, y = obs['position']
+
+        if self.virtual_action != None: # virtual action is continuing
+            self.accu_va_steps  += 1 
+            if self.virtual_action.is_active(state, obs):
+                self.accu_va_reward += self.reward_for_state(self.cur_state)
+                return self.virtual_action.next_action(state, obs)
+            else:
+                reward = self.accu_va_reward / self.accu_va_steps # rationale: this action is just a "faster" way to get to a desired state. If we let rewards accumulate, relative to other actions, it won't work (e.g. for rewards that are ctsly given like -ve for can't kick....)
+                print("concluded virtual action with reward %f for %d steps" % (reward, self.accu_va_steps))
+                self.virtual_action = None # reset va variables and continue
+                self.accu_va_reward = 0
+                self.accu_va_steps  = 0
+        else:
+            reward = self.reward_for_state(self.cur_state)
+
+        if self.prev_state == None: # can initialize stuff
+            ea.floyd_warshall(np.array(obs['board']))
 
         if self.prev_state != None:
-            self.learn(self.prev_state, self.cur_state, self.last_reward, self.last_action)
+            self.learn(self.prev_state, self.cur_state, reward, self.last_action)
+            self.agent_value = obs['board'][x, y]
+
 
         self.prev_state = state
         action = 0
-        actions = self.get_possible_actions(obs['board'],
+        actions = self.get_possible_actions(obs, obs['board'],
                                             obs['position'],
                                             obs['ammo'],
                                             obs['can_kick'],
                                             self.convert_bombs(np.array(obs['bomb_blast_strength']), np.array(obs['bomb_life'])))
+
         if np.random.uniform(0,1) < self.eps:
-            # Random action from the space
             action = np.random.choice(actions)
-            # print('random')
         else:
+            # randomly choose between actions with same q-value
             action = actions[0]
             indices = []
             for i in actions:
@@ -272,12 +293,13 @@ class BabyAgent(BaseAgent):
                 if self.Q[state_id, act] == self.Q[state_id, action]:
                     indices.append(act)
             action = np.random.choice(indices)
+
         self.last_action = action
-        # print(obs)
-        self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        print(obs['board'])
-        print(actions, action, obs['can_kick'], self.cur_state)
+        if action >= 6: # it's a virtual action
+            self.virtual_action = self.virtual_actions[action]
+            print("picking virtual action")
+            return self.virtual_action.next_action(self.cur_state, obs)
 
         return np.asscalar(action)

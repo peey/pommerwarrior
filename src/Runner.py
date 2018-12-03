@@ -2,8 +2,7 @@
 import pommerman as pom
 import os, sys
 
-from DiscoAgent import DiscoAgent
-
+from BabyAgent import BabyAgent 
 
 def main(train_for, to_render):
 
@@ -14,7 +13,7 @@ def main(train_for, to_render):
     # Print all possible environments in the Pommerman registry
     print(pom.REGISTRY)
 
-    wa = DiscoAgent()
+    wa = BabyAgent()
     agents = {
       "ours": [wa],
       "theirs": [pom.agents.SimpleAgent(), pom.agents.SimpleAgent(), pom.agents.SimpleAgent()]

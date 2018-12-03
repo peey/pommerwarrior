@@ -41,6 +41,7 @@ def directions_from_coordinates(a, b):
             else:
                 return "south"
 
+
 def closest_point(arr, pt): # arr is array of row and columns
     rows, cols = arr
     n = len(rows)
@@ -65,3 +66,27 @@ def scanboard(board, pos, teammate): # for now, just gives directions for neares
 
     return closest_enemy , closest_powerup
 
+def scanboard_richer(board, pos, self_id): 
+    enemies = np.where((board > 9) & (board != self_id))
+    #print(self_id)
+    #print(board[pos])
+    closest_enemy_coords = closest_point(enemies, pos) # as long as we're alive, at least one will exist
+    return closest_enemy_coords
+
+def get_agent_new_pos(board, enemy_id, last_pos): #O(5), as if anyone cares though
+    m, n = board.shape
+    x, y = last_pos
+    for xn, yn in [(x, y), (x + 1, y), (x - 1, y), (x, y -1), (x, y + 1)]:
+        if 0 <= xn < m and 0 <= yn < n and board[xn, yn] == enemy_id:
+            return (xn, yn)
+    # else enemy is dead
+
+"""
+def get_agent_new_pos(board, enemy_id):
+    enemy_coords = np.where((board == enemy_id))
+    xs, ys = enemy_coords
+    if len(xs) < 1:
+        return None
+    else:
+        return xs[0], ys[0]
+"""
