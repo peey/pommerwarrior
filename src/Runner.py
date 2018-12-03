@@ -1,55 +1,104 @@
 '''An example Q-Learning based warrior agent'''
-import pommerman
-from pommerman import agents
-from WarriorAgent import WarriorAgent
-from CrazyAgent import CrazyAgent
-from HybridAgent import HybridAgent
+import pommerman as pom
+import os, sys
+
 from DiscoAgent import DiscoAgent
-from pommerman import constants
-from ClassQL.MultiType import MultiTypeTeamAgent
 
 
-def main():
-    train_for = 100000 # episodes
+def main(train_for, to_render):
+
     '''Simple function to bootstrap a game.
        
        Example training environment.
     '''
     # Print all possible environments in the Pommerman registry
-    print(pommerman.REGISTRY)
-    # exit(0)
+    print(pom.REGISTRY)
 
     wa = DiscoAgent()
-    agent_list = [
-        agents.SimpleAgent(),
-        agents.RandomAgent(),
-        agents.SimpleAgent(),
-        wa,
-    ]
+    agents = {
+      "ours": [wa],
+      "theirs": [pom.agents.SimpleAgent(), pom.agents.SimpleAgent(), pom.agents.SimpleAgent()]
+    }
+
 
     # Make the "TeamCompetition" environment using the agent list
-    env = pommerman.make('PommeTeamCompetition-v0', agent_list)
-    # env = pommerman.make('PommeFFACompetition-v0', agent_list)
+    # env = pommerman.make('PommeTeamCompetition-v0', agent_list)
+    agents_list = agents["ours"] + agents["theirs"]
+    assert(len(agents_list) == 4)
+    env = pom.make('PommeFFACompetition-v0', agents_list)
 
-    # Run the episodes just like OpenAI Gym
-    num_wins = 0
+
+    complete_game_count = 0
+    draw_game_count = 0
+
     for i_episode in range(train_for):
-
-        constants.MAX_STEPS = 200 # doesn't seem to be working
         state = env.reset()
+
         done = False
-        while not done:
-            #env.render()
+        steps = 0
+        our_agents_wins             = [0     for agent in agents["ours"]]
+        our_agents_dead             = [False for agent in agents["ours"]]
+        our_agents_draw_performance = [0     for agent in agents["ours"]]
+
+        while not done and not all(our_agents_dead) and steps < 200: # TODO hopefully no memory leak on abruptly ending and resetting an environment?
+            if to_render:
+                env.render()
             actions = env.act(state)
-            state, reward, done, info = env.step(actions)
-            # print(reward)
-        print('Episode {} finished'.format(i_episode))
-        if wa.last_reward == 30:
-            num_wins+=1
-        print("Win Ratio: ", num_wins, i_episode+1)
-    print("completed the episode")
+            state, reward, done, info = env.step(actions) # done refers to if the whole game has ended or not
+            our_agents_dead = [reward[i] == -1 for i in range(len(agents["ours"]))] # we may be dead and yet game isn't done as other players are competing. Little do we care.
+
+        abrupt_end = not any(filter(lambda x: x == 1, reward)) # if no one won, then we abruptly ended the game
+
+        print('Episode {} finished:'.format(i_episode))
+        print("\t", reward)
+
+        if not abrupt_end:
+            complete_game_count += 1
+            print("\t complete game")
+        else:
+            draw_game_count += 1
+            print("\t abrupt end")
+
+        for i in range(len(agents["ours"])):
+            print("\t Our agent %d:" % i)
+
+            our_agent = agents["ours"][i]
+
+            if reward[i] == 1:
+                our_agents_wins[i] += 1 # episode_end has already been called by the script
+                print("\t\t it won")
+            elif reward[i] == -1 : 
+                if abrupt_end:
+                    our_agent.episode_end(-1)
+                print("\t\t it lost")
+            elif abrupt_end:
+                # Reward based on no of agents alive. Not -ve because our agent was alive, and if we hadn't intervened it "could've won". Each agent's objective is to kill others (directly or indirectly), even if they're ours. 
+                # So 1 - 0.25 * alive is the reward (either 0.5, 0.25, or 0 if all alive). If they had killed agents in the game, they would recieve upto 0.5 more reward. 
+                # So for optimal performance, reward goes up to 1.5 (combined with game end reward) for games that end properly, and up to 1 for games that end abruptly
+                total_alive = len(filter(lambda x: x != -1, reward))
+                our_agents_draw_performance[i] += total_alive
+                our_agent.episode_end(1 - 0.25 * total_alive)
+                print("\t\t draw with %d survivors" % total_alive)
+
+        with open("training_performance.txt", "a") as f:
+            f.write("Win Ratio, %d, \"%s\"\n" % (complete_game_count, our_agents_wins))
+            f.write("Draw Performance, %d, \"%s\"\n" % (draw_game_count, our_agents_draw_performance))
+
+    print("completed the training")
     env.close()
 
 
 if __name__ == '__main__':
-    main()
+
+    if len(sys.argv) > 1 and sys.argv[1] == "False":
+        to_render = False
+    else: 
+        to_render = True
+
+    if len(sys.argv) > 2:
+        train_for = int(sys.argv[2])
+    else: 
+        train_for = 100000 # episodes
+
+
+    main(train_for, to_render)
