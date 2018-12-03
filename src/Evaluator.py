@@ -1,4 +1,9 @@
-"""Train an agent with TensorForce.
+"""
+TensorForce Agents - For benchmarking using PPO and DQN algorithms.
+
+NOTE: The below code is heavily borrowed from pommerman cli script
+https://github.com/MultiAgentLearning/playground/blob/master/pommerman/cli/train_with_tensorforce.py
+since it was used only for benchmarking purposes.
 
 Call this with a config, a game, and a list of agents, one of which should be a
 tensorforce agent. The script will start separate threads to operate the agents
@@ -20,10 +25,8 @@ from tensorforce.contrib.openai_gym import OpenAIGym
 import gym
 
 from pommerman import helpers, make
-from pommerman.agents import TensorForceAgent, SimpleAgent, RandomAgent
-
-
-CLIENT = docker.from_env()
+from pommerman.agents import SimpleAgent, RandomAgent
+from Tensorflow_Agents import *
 
 
 def clean_up_agents(agents):
@@ -59,7 +62,7 @@ class WrappedEnv(OpenAIGym):
         return agent_obs
 
 
-def main(max_steps=200, train_for=100):
+def main(max_steps=200, train_for=100, render=False):
     '''CLI interface to bootstrap taining'''
     parser = argparse.ArgumentParser(description="Playground Flags.")
     parser.add_argument(
@@ -76,38 +79,35 @@ def main(max_steps=200, train_for=100):
 
     config = args.config
 
-    # TODO: After https://github.com/MultiAgentLearning/playground/pull/40
-    #       this is still missing the docker_env_dict parsing for the agents.
-    our_selection = TensorForceAgent(algorithm='ppo')
+    our_selection = DQN_TensorForce_Agent()
+    # our_selection.restore_agent('PPO_Model.file')
     agents = [
         our_selection,
         SimpleAgent(),
-        SimpleAgent(),
-        SimpleAgent()
+        RandomAgent(),
+        RandomAgent()
     ]
 
     env = make(config, agents)
     training_agent = None
 
-    for agent in agents:
-        if type(agent) == TensorForceAgent:
-            training_agent = agent
-            env.set_training_agent(agent.agent_id)
-            break
+    training_agent = our_selection
+    env.set_training_agent(our_selection.agent_id)
 
     # Create a Proximal Policy Optimization agent
     agent = training_agent.initialize(env)
 
     atexit.register(functools.partial(clean_up_agents, agents))
-    wrapped_env = WrappedEnv(env, visualize=args.render)
+    wrapped_env = WrappedEnv(env, visualize=(args.render or render))
     runner = Runner(agent=agent, environment=wrapped_env)
-    runner.run(episodes=100, max_episode_timesteps=200)
+    runner.run(episodes=train_for, max_episode_timesteps=max_steps)
     won = len([x for x in runner.episode_rewards if x == 1])
     tie = len([x for x in runner.episode_timesteps if x == max_steps])
     lost = train_for - won - tie 
     # print("Stats: ", runner.episode_rewards, runner.episode_timesteps,
     #       runner.episode_times)
     print(won, tie, lost)
+    # our_selection.save_model(file='PPO_Model.file')
 
     try:
         runner.close()
@@ -116,4 +116,5 @@ def main(max_steps=200, train_for=100):
 
 
 if __name__ == "__main__":
-    main(train_for=5000, max_steps=500)
+    main(train_for=100, max_steps=500)
+    main(train_for=5, render=True, max_steps=100)
