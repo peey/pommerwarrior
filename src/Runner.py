@@ -2,7 +2,9 @@
 import pommerman as pom
 import os, sys
 
-from BabyAgent import BabyAgent 
+from ClassVary import * 
+
+GRAPH_Y = []
 
 def main(train_for, to_render):
 
@@ -13,7 +15,7 @@ def main(train_for, to_render):
     # Print all possible environments in the Pommerman registry
     print(pom.REGISTRY)
 
-    wa = BabyAgent()
+    wa = Coward()
     agents = {
       "ours": [wa],
       "theirs": [pom.agents.SimpleAgent(), pom.agents.RandomAgent(), pom.agents.RandomAgent()]
@@ -81,9 +83,12 @@ def main(train_for, to_render):
                 draw_game_count += 1
                 print("\t\t draw with %d survivors" % total_alive)
 
+        GRAPH_Y.append(our_agents_wins[0])
         with open("training_performance.txt", "a") as f:
             f.write("Win Ratio, %d, \"%s\"\n" % (complete_game_count, our_agents_wins))
             f.write("Draw Performance, %d, \"%s\"\n" % (draw_game_count, our_agents_draw_performance))
+    with open("Graphing.txt", "a") as f:
+        f.write(str(type(wa).__name__) + " %s\n" % (str(GRAPH_Y)))
 
     print("completed the training")
     env.close()
