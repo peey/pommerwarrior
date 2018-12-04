@@ -1,3 +1,4 @@
 *.sw[pon]
 __pycache__/
 logs/
+src/training_performance.txt
