@@ -15,7 +15,7 @@ def main(train_for, to_render):
     # Print all possible environments in the Pommerman registry
     print(pom.REGISTRY)
 
-    wa = Coward()
+    wa = Chaser()
     agents = {
       "ours": [wa],
       "theirs": [pom.agents.SimpleAgent(), pom.agents.RandomAgent(), pom.agents.RandomAgent()]
