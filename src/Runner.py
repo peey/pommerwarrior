@@ -19,12 +19,11 @@ def main(train_for, to_render):
       "theirs": [pom.agents.SimpleAgent(), pom.agents.RandomAgent(), pom.agents.RandomAgent()]
     }
 
-
     # Make the "TeamCompetition" environment using the agent list
     # env = pommerman.make('PommeTeamCompetition-v0', agent_list)
     agents_list = agents["ours"] + agents["theirs"]
     assert(len(agents_list) == 4)
-    env = pom.make('PommeFFACompetition-v0', agents_list)
+    env = pom.make('PommeFFACompetitionFast-v0', agents_list)
 
 
     complete_game_count = 0
@@ -42,6 +41,7 @@ def main(train_for, to_render):
         while not done and not all(our_agents_dead) and steps < 300: # TODO hopefully no memory leak on abruptly ending and resetting an environment?
             if to_render:
                 env.render()
+            agents_list[0].store_enemy_info(state)
             actions = env.act(state)
             #print("okay", actions)
             state, reward, done, info = env.step(actions) # done refers to if the whole game has ended or not

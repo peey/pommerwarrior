@@ -63,6 +63,8 @@ class BabyAgent(BaseAgent):
           Actions.ESCAPE_BOXED_IN       : ea.EscapeBoxedIn(self)
         }
 
+        self.enemy_info = []
+
         self.unpickle_or_default()
 
     def pickle(self):
@@ -163,6 +165,9 @@ class BabyAgent(BaseAgent):
                 return True
         return False
 
+    def store_enemy_info(self, arr):
+        self.enemy_info = arr
+
     def get_observation_state(self, obs):
         """
         Need just the board layout to decide everything
@@ -201,6 +206,8 @@ class BabyAgent(BaseAgent):
 
         x, y = obs['position']
 
+        nearby_enemy_id = None
+
         for del_x in range(-2, 3):
             for del_y in range(-2, 3):
                 newX = x + del_x
@@ -208,11 +215,13 @@ class BabyAgent(BaseAgent):
 
                 immediate_zone = abs(del_x) <= 1 and abs(del_y) <= 1
 
-                if newX < board.shape[0] and newY < board.shape[1] and newX >=0 and  newY >= 0:
+                if newX < board.shape[0] and newY < board.shape[1] and newX >= 0 and  newY >= 0:
                     if utility.position_is_bomb(bombs, (newX, newY)):
                         d['bomb_nearby'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
-                    if utility.position_is_enemy(obs['board'], obs['position'], obs['enemies']):
-                        d['has_enemy'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
+
+                    if utility.position_is_enemy(obs['board'], (newX, newY), obs['enemies']):
+                        nearby_enemy_id = obs['board'][newX, newY]
+                        d['enemy_nearby'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
 
                     d['los_bomb'] = self.check_bomb((newX, newY), bombs) or d['los_bomb']
 
@@ -221,6 +230,12 @@ class BabyAgent(BaseAgent):
 
         d["is_surrounded"] = ep.is_pos_surrounded(obs["board"], obs["position"], self.agent_value)
         #print(d["is_surrounded"])
+        
+        if nearby_enemy_id:
+            #print(self.enemy_info)
+            enemy_object = self.enemy_info[nearby_enemy_id - 10] # 10, 11, 12, 13 index, one assumes 
+            d["nearby_enemy_has_bomb"] = enemy_object['ammo'] > 0
+            d["nearby_enemy_can_kick"] = enemy_object['can_kick'] > 0
 
         return AliveState(**d)
 

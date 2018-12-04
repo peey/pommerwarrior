@@ -42,5 +42,3 @@ class Actions(IntEnum):
     CHASE_NEAREST_ENEMY   = 6 # virtual actions start at index 6
     CHASE_NEAREST_POWERUP = 7 
     ESCAPE_BOXED_IN       = 8 
-
-

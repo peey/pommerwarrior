@@ -40,9 +40,11 @@ class EscapeBoxedIn(VirtualAction):
     def __init__(self, agent): # agent's object may contains richer info about state which doesn't concern the MDP
         self.agent = agent
         self.target = None
+        self.path = []
 
     def is_valid(self, state, obs): 
-        #print("\t", state.is_surrounded, self.get_target(state, obs))
+        if state.is_surrounded:
+            print("\t", state.is_surrounded, self.get_target(state, obs))
         return state.is_surrounded and self.get_target(state, obs)
 
     def is_active(self, state, obs): # once we aren't surrounded, no longer valid
@@ -50,6 +52,7 @@ class EscapeBoxedIn(VirtualAction):
             return True
         else:
             self.target = None
+            self.path = []
             return False
 
     def get_target(self, state, obs): # for now, doesn't clear the passage or anything, just looks for a box nearby which isn't surrounded and embarks on a path to it
@@ -61,32 +64,47 @@ class EscapeBoxedIn(VirtualAction):
 
         clear_spots = np.where((board == 0) | ((board >= 6) & (board <= 8)))
 
-        row_coord, col_coord = clear_spots
-        distances = np.array([ep.get_shortest_distance_between(row_coord[i], col_coord[i], x, y) for i in range(n)])
+        row, col = clear_spots
 
-        for ix in np.argsort(distances):
-            xn, yn = row_coord[ix], col_coord[ix]
+        visited = set()
+        parents = {}
+        queue = [(x, y)]
 
-            if ep.is_pos_surrounded(board, pos, self.agent.agent_value):
-                self.target = (xn, yn)
-                break
+        while queue:
+            #print("yes bfs")
+            xi, yi = queue.pop()
+            visited.add((xi, yi))
 
-        if not self.target: # this should be near impossible
-            return False
-        else:
-            shortest_path = ep.get_shortest_path_between(x, y, *self.target)
-            if not shortest_path:
-                return False
-            else:
+            if not ep.is_pos_surrounded(board, (xi, yi), self.agent.agent_value):
+                self.target = (xi, yi)
+                
+                self.path = []
+                c = self.target
+                while c != (x, y):
+                    self.path.append(c) # will be in reverse direction but doesn't matter because we'll pop it
+                    c = parents[c]
                 return True
+
+            neighbors = [(xi + 1, yi), (xi - 1, yi), (xi, yi + 1), (xi, yi - 1)]
+            for xn, yn in neighbors:
+                if 0 <= xn < m and 0 <= yn < n and ((xn, yn) not in visited):
+                    v = board[xn, yn]
+                    if v == 0 or 6 <= v <= 8:
+                        parents[(xn, yn)] = (xi, yi)
+                        queue.append((xn, yn))
+            if len(visited) > 25:
+                print("oops")
+                return False
+        
+
 
     def next_action(self, state, obs):
         print("pos", obs["position"])
         print("target", self.target)
-        shortest_path = ep.get_shortest_path_between(*obs["position"], *self.target)
-        print("act", action_to_reach_adj_coords(obs["position"], shortest_path[0]))
-        print("step",  shortest_path[0])
-        return action_to_reach_adj_coords(obs["position"], shortest_path[0])
+        print(self.path)
+        adj = self.path.pop()
+        print("step", adj)
+        return action_to_reach_adj_coords(obs["position"], adj)
 
 
 class ChaseNearestPowerup(VirtualAction):
