@@ -245,6 +245,8 @@ class BabyAgent(BaseAgent):
         self.experience += 1
         self.pickle()
 
+    def do_explore(self, valid_actions):
+        return random.choice(valid_actions)
 
     def act(self, obs, action_space):
         state = self.get_observation_state(obs)
@@ -285,7 +287,7 @@ class BabyAgent(BaseAgent):
                                             self.convert_bombs(np.array(obs['bomb_blast_strength']), np.array(obs['bomb_life'])))
 
         if np.random.uniform(0,1) < self.eps:
-            action = random.choice(valid_actions)
+            action = self.do_explore(valid_actions)
         else:
             action_ix = np.argmax([self.exploration_function(state_id, action) for action in valid_actions])
             action = valid_actions[action_ix]
