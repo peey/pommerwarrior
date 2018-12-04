@@ -1,4 +1,5 @@
 from BabyAgent import BabyAgent
+from util import BlastStrength
 
 class Fighter(BabyAgent):
     def __init__(self, *args, **kwargs):
