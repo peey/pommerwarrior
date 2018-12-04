@@ -231,7 +231,7 @@ class BabyAgent(BaseAgent):
         d["is_surrounded"] = ep.is_pos_surrounded(obs["board"], obs["position"], self.agent_value)
         #print(d["is_surrounded"])
         
-        if nearby_enemy_id:
+        if nearby_enemy_id and self.enemy_info:
             #print(self.enemy_info)
             enemy_object = self.enemy_info[nearby_enemy_id - 10] # 10, 11, 12, 13 index, one assumes 
             d["nearby_enemy_has_bomb"] = enemy_object['ammo'] > 0
