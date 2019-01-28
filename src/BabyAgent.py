@@ -19,12 +19,12 @@ import os
 AliveState = collections.namedtuple("AliveState", ["bomb_nearby", "enemy_nearby", 
                                                    "is_surrounded", "los_bomb", "ammo", 
                                                    "can_kick", "blast_strength", "enemies_alive", 
-                                                   "nearby_enemy_has_bomb", "nearby_enemy_can_kick"])
+                                                   "nearby_enemy_has_bomb", "nearby_enemy_can_kick", "next_to_wood"])
 
 alive_component_state_space = AliveState([Proximity.NONE, Proximity.IMMEDIATE, Proximity.CLOSE], [Proximity.NONE, Proximity.IMMEDIATE, Proximity.CLOSE],
                                          [True, False], [True, False], [0, 1, 2, 3], 
                                          [True, False], [BlastStrength.LOW, BlastStrength.HIGH], [1, 2, 3], 
-                                         [True, False], [True, False]) # we don't have to worry about nearby enemy's blast strength because "loa_bomb" calculation will take care of it
+                                         [True, False], [True, False], [True, False]) # we don't have to worry about nearby enemy's blast strength because "loa_bomb" calculation will take care of it
 
 
 # events for reward - killed enemy, picked ammo, picked something. In these cases we should look back and give reward to sequence of states leading up to this.
@@ -48,7 +48,7 @@ class BabyAgent(BaseAgent):
         self.eps = 0.01
 
         self.lr_rate_naught = 0.8
-        self.gamma = 0.96
+        self.gamma = 0.99
 
         self.prev_state = None # will be tuples, we convert to index when we have to do lookup
         self.cur_state = None 
@@ -108,6 +108,8 @@ class BabyAgent(BaseAgent):
             rewards -= 0.01
         if s.blast_strength != BlastStrength.HIGH:
             rewards -= 0.01
+        if self.prev_state and self.prev_state.next_to_wood and self.last_action == Actions.BOMB:
+            rewards += 0.03
 
         return rewards
 
@@ -200,7 +202,8 @@ class BabyAgent(BaseAgent):
             "blast_strength": BlastStrength.LOW if obs['blast_strength'] <= 2 else BlastStrength.HIGH ,
             "enemies_alive": len(list(filter(lambda enemy: enemy.value in obs['alive'], obs['enemies']))),
             "nearby_enemy_has_bomb": False,
-            "nearby_enemy_can_kick": False
+            "nearby_enemy_can_kick": False,
+            "next_to_wood": False
         })
 
 
@@ -218,6 +221,9 @@ class BabyAgent(BaseAgent):
                 if newX < board.shape[0] and newY < board.shape[1] and newX >= 0 and  newY >= 0:
                     if utility.position_is_bomb(bombs, (newX, newY)):
                         d['bomb_nearby'] = Proximity.IMMEDIATE if immediate_zone else Proximity.CLOSE
+
+                    if immediate_zone and obs["board"][newX, newY] == 2:
+                        d["next_to_wood"] = True
 
                     if utility.position_is_enemy(obs['board'], (newX, newY), obs['enemies']):
                         nearby_enemy_id = obs['board'][newX, newY]
@@ -249,7 +255,7 @@ class BabyAgent(BaseAgent):
         target = reward + self.gamma * np.max(self.Q[to_state_id, :])
 
         n = min(self.experience, self.N[from_state_id, action_taken]/20)
-        lr_rate = self.lr_rate_naught / (1 + math.log(1 + n))
+        lr_rate =  self.lr_rate_naught / (1 + math.log(1 + n))
         #print(lr_rate, self.N[from_state_id, action_taken])
         self.Q[from_state_id, action_taken] = (1 - lr_rate) * predict + lr_rate * target 
 
@@ -315,4 +321,6 @@ class BabyAgent(BaseAgent):
             self.virtual_action = self.virtual_actions[action]
             return self.virtual_action.next_action(self.cur_state, obs)
 
+        #print(self.cur_state.next_to_wood)
+        #print(action)
         return action

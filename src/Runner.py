@@ -3,6 +3,9 @@ import pommerman as pom
 import os, sys
 
 from ClassVary import * 
+from BabyAgent import BabyAgent
+from DiscoAgent import DiscoAgent
+from HybridAgent import HybridAgent
 
 GRAPH_Y = []
 
@@ -15,17 +18,17 @@ def main(train_for, to_render):
     # Print all possible environments in the Pommerman registry
     print(pom.REGISTRY)
 
-    wa = Chaser()
+    wa = HybridAgent()
     agents = {
-      "ours": [wa],
-      "theirs": [pom.agents.SimpleAgent(), pom.agents.RandomAgent(), pom.agents.RandomAgent()]
+      "ours": [wa, DiscoAgent(), BabyAgent()],
+      "theirs": [pom.agents.SimpleAgent()]
     }
 
     # Make the "TeamCompetition" environment using the agent list
     # env = pommerman.make('PommeTeamCompetition-v0', agent_list)
     agents_list = agents["ours"] + agents["theirs"]
     assert(len(agents_list) == 4)
-    env = pom.make('PommeFFACompetitionFast-v0', agents_list)
+    env = pom.make('PommeFFACompetition-v0', agents_list)
 
 
     complete_game_count = 0
@@ -35,19 +38,20 @@ def main(train_for, to_render):
 
     for i_episode in range(train_for):
         state = env.reset()
-
+        env.render()
+        
         our_agents_dead = [False for agent in agents["ours"]]
         done = False
         steps = 0
 
-        while not done and not all(our_agents_dead) and steps < 300: # TODO hopefully no memory leak on abruptly ending and resetting an environment?
-            if to_render:
-                env.render()
-            agents_list[0].store_enemy_info(state)
+        while not done and not all(our_agents_dead) and steps < 800: # TODO hopefully no memory leak on abruptly ending and resetting an environment?
+            agents_list[2].store_enemy_info(state)
             actions = env.act(state)
             #print("okay", actions)
             state, reward, done, info = env.step(actions) # done refers to if the whole game has ended or not
             our_agents_dead = [reward[i] == -1 for i in range(len(agents["ours"]))] # we may be dead and yet game isn't done as other players are competing. Little do we care.
+            if to_render:
+                env.render()
 
         abrupt_end = not any(filter(lambda x: x == 1, reward)) # if no one won, then we abruptly ended the game
 
@@ -67,6 +71,7 @@ def main(train_for, to_render):
             if reward[i] == 1:
                 our_agents_wins[i] += 1 # episode_end has already been called by the script
                 print("\t\t it won")
+                input()
                 complete_game_count += 1
             elif reward[i] == -1 : 
                 if abrupt_end:

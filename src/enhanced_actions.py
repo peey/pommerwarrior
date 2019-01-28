@@ -43,8 +43,8 @@ class EscapeBoxedIn(VirtualAction):
         self.path = []
 
     def is_valid(self, state, obs): 
-        if state.is_surrounded:
-            print("\t", state.is_surrounded, self.get_target(state, obs))
+        #if state.is_surrounded:
+            #print("\t", state.is_surrounded, self.get_target(state, obs))
         return state.is_surrounded and self.get_target(state, obs)
 
     def is_active(self, state, obs): # once we aren't surrounded, no longer valid
@@ -99,11 +99,11 @@ class EscapeBoxedIn(VirtualAction):
 
 
     def next_action(self, state, obs):
-        print("pos", obs["position"])
-        print("target", self.target)
-        print(self.path)
+        #print("pos", obs["position"])
+        #print("target", self.target)
+        #print(self.path)
         adj = self.path.pop()
-        print("step", adj)
+        #print("step", adj)
         return action_to_reach_adj_coords(obs["position"], adj)
 
 

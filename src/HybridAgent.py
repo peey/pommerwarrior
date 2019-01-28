@@ -95,7 +95,7 @@ class HybridAgent(BaseAgent):
         x, y = pos
         dirX = [-1,1, 0,0]
         dirY = [ 0,0,-1,1]
-        print(bombs)
+        #print(bombs)
         for k in range(0, len(dirX)):
             newX = x + dirX[k]
             newY = y + dirY[k]
@@ -106,11 +106,11 @@ class HybridAgent(BaseAgent):
                     valid_acts.append(k+1)
                 elif board[newX, newY] in [3] and can_kick:
                     valid_acts.append(k+1)
-                    print('contributed to suicide !')
+                    #print('contributed to suicide !')
                 elif board[newX, newY] in [0, 6, 7, 8] and utility.position_is_bomb(bombs, (x,y)):
-                    print('contributed to death !!!')
+                    #print('contributed to death !!!')
                     valid_acts.append(k+1)
-                print('Appending ', k+1, newX, newY, cbom)
+                #print('Appending ', k+1, newX, newY, cbom)
         if ammo > 0:
             valid_acts.append(5)
 
@@ -203,12 +203,12 @@ class HybridAgent(BaseAgent):
         self.last_reward = reward * 30
         self.learn(self.prev_state, self.cur_state, reward, self.last_action)
         # print(self.Q)
-        print('win status of last episode : ', reward)
+        #print('win status of last episode : ', reward)
         self.pickle()
 
 
     def act(self, obs, action_space):
-        print(action_space)
+        #print(action_space)
         state = self.get_observation_state(obs['board'],
                                            obs['position'],
                                            obs['enemies'],
@@ -249,7 +249,7 @@ class HybridAgent(BaseAgent):
         self.eps -= 1/(obs['step_count']+100)
         self.last_reward = self.reward_for_state(self.cur_state)
 
-        print(obs['board'])
-        print(actions, action, obs['can_kick'], self.cur_state)
+        #print(obs['board'])
+        #print(actions, action, obs['can_kick'], self.cur_state)
 
         return np.asscalar(action)
