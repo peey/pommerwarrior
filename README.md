@@ -12,8 +12,8 @@ Step 3 launches 3 of our trained agents against the baseline agent. You may vary
 
 ## Some Winning Plays
 
-Red Agent (Top left) is our best performing Agent
-Green Agent (Top right) is the baseline Agent 
-The other two are our suboptimal Agents
+Red Agent (Top left) is our best performing Agent.  
+Green Agent (Top right) is the baseline Agent.  
+The other two are our suboptimal Agents.  
 
 ![demo-red-winning.gif](demo-red-winning.gif)
