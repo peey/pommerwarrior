@@ -2,3 +2,4 @@
 __pycache__/
 logs/
 src/training_performance.txt
+misc
